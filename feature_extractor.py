@@ -34,7 +34,11 @@ def main():
         df[col] = df[col].apply(parse_list)
 
     # Convert timestamps
-    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+    df["timestamp"] = pd.to_datetime(
+    df["timestamp"],
+    format="mixed",
+    utc=True
+)
 
     # Store all wallets we encounter
     wallets = set()
