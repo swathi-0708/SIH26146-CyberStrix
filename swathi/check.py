@@ -1,0 +1,31 @@
+import pandas as pd
+from sklearn.metrics import roc_auc_score
+
+train_df = pd.read_csv('output/train.csv')
+feature_cols = [
+    'n_inputs', 'n_outputs', 'n_unique_input_addresses',
+    'n_unique_output_addresses', 'total_input_btc',
+    'input_output_ratio', 'fan_in_5plus',
+    'output_min_max_ratio',
+    'sender_tx_count_1h', 'sender_tx_count_24h', 'sender_time_since_last_tx_min',
+    'sender_distinct_asn_last10', 'sender_distinct_ip_last10', 'sender_amount_zscore',
+]
+
+anomaly_types = train_df['anomaly_type'].dropna().unique()
+
+print("Single-feature AUC per anomaly_type (train set)")
+print("AUC near 1.0 or 0.0 for a feature = that feature alone near-perfectly separates that type = leak candidate\n")
+
+for atype in anomaly_types:
+    y_type = (train_df['anomaly_type'] == atype).astype(int)
+    # only meaningful if there are both anomaly-of-this-type rows and normal rows to compare against
+    mask = (train_df['is_anomaly'] == 0) | (train_df['anomaly_type'] == atype)
+    print(f"--- {atype} (n={y_type.sum()}) ---")
+    for col in feature_cols:
+        try:
+            auc = roc_auc_score(y_type[mask], train_df.loc[mask, col])
+            flag = "  <-- SUSPECT" if auc > 0.9 or auc < 0.1 else ""
+            print(f"  {col:30s} AUC={auc:.3f}{flag}")
+        except Exception as e:
+            print(f"  {col:30s} skipped ({e})")
+    print()
