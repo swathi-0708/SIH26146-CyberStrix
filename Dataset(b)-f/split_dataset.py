@@ -7,6 +7,8 @@ Same causal, leak-safe feature logic — nothing about the methodology changed,
 only the input/output paths, plus one addition: fee_ratio, which the original
 script never computed even though it's the feature the leak was found in.
 """
+import argparse
+import os
 import pandas as pd
 import numpy as np
 import json
@@ -14,19 +16,78 @@ import math
 import random
 import re
 from collections import deque
+from ingest import load_transactions
 
 random.seed(42)
 
 # ---- Load raw data ----
-raw = pd.read_csv('output/transactions.csv')
+# Transactions file: accepts CSV, JSON, or XML (PS requirement -- "Ingest &
+# parse a bulk metadata dataset in CSV/JSON/XML"). If judges hand you the
+# dataset in a different format than you tested with, or you're out of
+# prep time to reformat it, this just works -- ingest.py detects the format
+# from the extension and normalizes it to the same shape either way.
+#
+# --input lets you point at whatever file you were actually handed; if not
+# given, auto-detects by checking for transactions.csv/.json/.xml in that
+# order inside output/ (your own dev default stays CSV, nothing changes
+# for your existing workflow unless you pass a different file).
+ap = argparse.ArgumentParser()
+ap.add_argument("--input", type=str, default=None,
+                 help="Path to the transactions file (.csv/.json/.xml). "
+                      "If omitted, auto-detects output/transactions.{csv,json,xml}.")
+args, _ = ap.parse_known_args()
+
+if args.input:
+    input_path = args.input
+else:
+    input_path = None
+    for ext in ("csv", "json", "xml"):
+        candidate = f"output/transactions.{ext}"
+        if os.path.exists(candidate):
+            input_path = candidate
+            break
+    if input_path is None:
+        raise FileNotFoundError(
+            "No transactions file found (looked for output/transactions.csv/.json/.xml). "
+            "Pass --input <path> explicitly."
+        )
+
+print(f"Loading transactions from: {input_path}")
+raw = load_transactions(input_path)
+
+# Ground-truth labels and wallet reference stay CSV -- these are OUR OWN
+# internal artifacts (produced by generate_dataset.py for training/eval),
+# not part of "the bulk metadata dataset" the PS says judges hand you in
+# CSV/JSON/XML. That requirement is about the transaction data itself.
 labels = pd.read_csv('output/ground_truth_labels.csv')
 wallets_ref = pd.read_csv('output/wallets_reference.csv')
 
+# ---- GeoIP enrichment (PS requirement: "integrate open source downloadable
+# GeoIP database") ----
+# Resolves src_ip -> real country/ASN via offline geoip2fast lookup, INDEPENDENT
+# of the dataset's own baked-in geo_country/asn columns (those are synthetic
+# ground-truth the generator used to shape wallet behavior, not derived from
+# the IP). These resolved columns are added to `raw` for use by the entity
+# graph's IP-node attributes and for reporting -- they are NOT swapped into
+# the frozen FEATURE_COLS below. Doing that would change already-verified
+# model behavior and needs an explicit decision, not a silent substitution.
+from geoip_enrich import GeoEnricher
+print("Resolving src_ip -> country/ASN via offline GeoIP (geoip2fast)...")
+_geo = GeoEnricher()
+raw = _geo.enrich_dataframe(raw, ip_col='src_ip',
+                             country_col='geo_country_resolved',
+                             asn_col='asn_resolved')
+print(f"  Resolved {(~raw['asn_resolved'].isin(['UNRESOLVED'])).mean():.1%} of rows "
+      f"(excl. UNRESOLVED; jittered IPs occasionally land outside the exact ASN block, expected)")
+
 # ---- Parse list-columns ----
-raw['input_list'] = raw['input_addresses'].apply(json.loads)
-raw['output_list'] = raw['output_addresses'].apply(json.loads)
-raw['input_amounts_list'] = raw['input_amounts'].apply(json.loads)
-raw['output_amounts_list'] = raw['output_amounts'].apply(json.loads)
+# ingest.py already normalizes these to real Python lists regardless of
+# source format (CSV/JSON/XML) -- no json.loads needed here, that's the
+# whole point of routing through the universal loader.
+raw['input_list'] = raw['input_addresses']
+raw['output_list'] = raw['output_addresses']
+raw['input_amounts_list'] = raw['input_amounts']
+raw['output_amounts_list'] = raw['output_amounts']
 
 # ---- Structural features ----
 raw['n_inputs'] = raw['input_list'].apply(len)
@@ -155,7 +216,8 @@ for i in raw_sorted_idx:
         last_output_time[out_addr] = t
 
 feature_cols = [
-    'txid', 'n_inputs', 'n_outputs', 'n_unique_input_addresses',
+    'txid', 'geo_country_resolved', 'asn_resolved',
+    'n_inputs', 'n_outputs', 'n_unique_input_addresses',
     'n_unique_output_addresses', 'total_input_btc', 'total_output_btc',
     'input_output_ratio', 'fan_in_5plus', 'output_min_max_ratio', 'fee', 'fee_ratio',
     'input_addr_is_recent_output', 'minutes_since_addr_last_output',
