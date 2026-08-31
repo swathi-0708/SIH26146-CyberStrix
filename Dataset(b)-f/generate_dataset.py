@@ -95,6 +95,13 @@ def rand_ip(asn_entry):
     return ".".join(octets)
 
 
+def rand_fee_rate():
+    """Shared stochastic fee rate (0.05-0.4%) used by all transaction types,
+    normal and anomalous alike. Using one distribution everywhere prevents
+    fee rate from acting as a proxy label for any anomaly class."""
+    return random.uniform(0.0005, 0.004)
+
+
 def new_wallet_address():
     prefix = random.choice(["1", "3", "bc1q"])
     tail = uuid.uuid4().hex[:30]
@@ -156,7 +163,7 @@ def make_normal_transaction(wallets, t, wid_from=None):
         n_out = np.random.choice([1, 2, 4, 8, 15], p=[0.3, 0.25, 0.2, 0.15, 0.1])
 
     amount = max(0.00001, np.random.normal(sender.typical_amount, sender.typical_amount * 0.25))
-    fee = round(amount * random.uniform(0.0005, 0.004) + 0.00001, 8)
+    fee = round(amount * rand_fee_rate() + 0.00001, 8)
 
     input_addrs = [sender.address] + [new_wallet_address() for _ in range(n_in - 1)]
     output_addrs = [receiver.address] + [new_wallet_address() for _ in range(n_out - 1)]
@@ -186,15 +193,18 @@ def make_normal_transaction(wallets, t, wid_from=None):
 def inject_peeling_chain(wallets, start_time, chain_len=8):
     rows, labels = [], []
     source = random.choice(wallets)
-    current_amount = round(np.random.uniform(2.0, 8.0), 6)  # start with a "big" balance
+    # Starting amount drawn from the same lognormal family as normal high-value transactions.
+    # lognormal(-2.0, 1.0) has median ~0.135 BTC with significant overlap into the normal
+    # upper tail, so amount alone cannot distinguish chain hops from top-percentile normal txs.
+    current_amount = round(max(np.random.lognormal(mean=-2.0, sigma=1.0), 0.001), 6)
     t = start_time
     current_addr = source.address
     for hop in range(chain_len):
         peel = round(current_amount * np.random.uniform(0.02, 0.08), 8)  # small peeled-off amount
         change_addr = new_wallet_address()
         peel_addr = new_wallet_address()
-        fee = round(current_amount * 0.0008, 8)
-        remaining = round(current_amount - peel - fee, 8)
+        fee = round(current_amount * rand_fee_rate() + 0.00001, 8)
+        remaining = round(max(current_amount - peel - fee, 0.00001), 8)
         txid = new_txid()
         row = {
             "timestamp": t.isoformat() + "Z",
@@ -229,30 +239,33 @@ def inject_fan_out_mixer(wallets, start_time, n_in=25, n_out=25):
     txid_in = new_txid()
     input_addrs = [new_wallet_address() for _ in range(n_in)]
     total_in = round(sum(np.random.uniform(0.05, 0.5) for _ in range(n_in)), 8)
+    fanin_fee = round(total_in * rand_fee_rate() + 0.00001, 8)
     rows.append({
         "timestamp": t.isoformat() + "Z", "src_ip": mixer.home_ip,
         "dst_ip": rand_ip(mixer.asn_entry), "src_port": random.randint(1024, 65535),
         "dst_port": 8333, "txid": txid_in,
         "input_addresses": input_addrs, "output_addresses": [mixer.address],
-        "input_amounts": [round(total_in / n_in, 8)] * n_in, "output_amounts": [total_in * 0.999],
-        "fee": round(total_in * 0.001, 8), "script_type": mixer.script_type,
+        "input_amounts": [round(total_in / n_in, 8)] * n_in,
+        "output_amounts": [round(total_in - fanin_fee, 8)],
+        "fee": fanin_fee, "script_type": mixer.script_type,
         "geo_country": mixer.asn_entry["country"], "asn": mixer.asn_entry["asn"],
     })
     labels.append({"txid": txid_in, "is_anomaly": 1, "anomaly_type": "fan_out_mixer",
                     "wallet_ids": f"mixer_{mixer.id}_fanin"})
     t += timedelta(minutes=random.randint(2, 10))
     # rapid fan-out, split across several *different* source IPs (mixer-like laundering)
-    per_out = round((total_in * 0.995) / n_out, 8)
+    per_out = round(total_in / n_out, 8)
     for i in range(n_out):
         out_asn = random.choice(ASN_POOL)
         txid_out = new_txid()
+        out_fee = round(per_out * rand_fee_rate() + 0.00001, 8)
         rows.append({
             "timestamp": t.isoformat() + "Z", "src_ip": rand_ip(out_asn),
             "dst_ip": fake.ipv4_public(), "src_port": random.randint(1024, 65535),
             "dst_port": 8333, "txid": txid_out,
             "input_addresses": [mixer.address], "output_addresses": [new_wallet_address()],
-            "input_amounts": [per_out], "output_amounts": [round(per_out * 0.998, 8)],
-            "fee": round(per_out * 0.002, 8), "script_type": random.choice(SCRIPT_TYPES),
+            "input_amounts": [per_out], "output_amounts": [round(per_out - out_fee, 8)],
+            "fee": out_fee, "script_type": random.choice(SCRIPT_TYPES),
             "geo_country": out_asn["country"], "asn": out_asn["asn"],
         })
         labels.append({"txid": txid_out, "is_anomaly": 1, "anomaly_type": "fan_out_mixer",
@@ -280,16 +293,17 @@ def inject_structuring(wallets, start_time, threshold=10.0, n_tx=12):
     w = random.choice(wallets)
     t = start_time
     for i in range(n_tx):
-        amount = round(threshold - np.random.uniform(0.01, 0.35), 8)  # just under threshold
+        amount = round(max(w.typical_amount * np.random.uniform(1.5, 2.5), 0.001), 8)  # elevated but overlapping wallet-scale amount
         receiver_addr = new_wallet_address()
         txid = new_txid()
+        struct_fee = round(amount * rand_fee_rate() + 0.00001, 8)
         rows.append({
             "timestamp": t.isoformat() + "Z", "src_ip": w.home_ip,
             "dst_ip": rand_ip(w.asn_entry), "src_port": random.randint(1024, 65535),
             "dst_port": 8333, "txid": txid,
             "input_addresses": [w.address], "output_addresses": [receiver_addr],
-            "input_amounts": [amount], "output_amounts": [round(amount * 0.999, 8)],
-            "fee": round(amount * 0.001, 8), "script_type": w.script_type,
+            "input_amounts": [amount], "output_amounts": [round(amount - struct_fee, 8)],
+            "fee": struct_fee, "script_type": w.script_type,
             "geo_country": w.asn_entry["country"], "asn": w.asn_entry["asn"],
         })
         labels.append({"txid": txid, "is_anomaly": 1, "anomaly_type": "structuring",
@@ -307,13 +321,14 @@ def inject_ip_hopping(wallets, start_time, n_tx=15):
         receiver_addr = new_wallet_address()
         amount = round(np.random.uniform(0.01, 0.3), 8)
         txid = new_txid()
+        hop_fee = round(amount * rand_fee_rate() + 0.00001, 8)
         rows.append({
             "timestamp": t.isoformat() + "Z", "src_ip": rand_ip(hop_asn),
             "dst_ip": fake.ipv4_public(), "src_port": random.randint(1024, 65535),
             "dst_port": 8333, "txid": txid,
             "input_addresses": [w.address], "output_addresses": [receiver_addr],
-            "input_amounts": [amount], "output_amounts": [round(amount * 0.998, 8)],
-            "fee": round(amount * 0.002, 8), "script_type": w.script_type,
+            "input_amounts": [amount], "output_amounts": [round(amount - hop_fee, 8)],
+            "fee": hop_fee, "script_type": w.script_type,
             "geo_country": hop_asn["country"], "asn": hop_asn["asn"],
         })
         labels.append({"txid": txid, "is_anomaly": 1, "anomaly_type": "ip_hopping",
@@ -327,16 +342,17 @@ def inject_profile_deviation(wallets, start_time, n_events=10):
     t = start_time
     for i in range(n_events):
         w = random.choice(wallets)
-        huge_amount = round(w.typical_amount * np.random.uniform(15, 60) + 1.0, 8)
+        huge_amount = round(max(w.typical_amount * np.random.uniform(3, 10), 0.05), 8)
         receiver_addr = new_wallet_address()  # brand new, never-seen counterparty
         txid = new_txid()
+        dev_fee = round(huge_amount * rand_fee_rate() + 0.00001, 8)
         rows.append({
             "timestamp": t.isoformat() + "Z", "src_ip": w.home_ip,
             "dst_ip": fake.ipv4_public(), "src_port": random.randint(1024, 65535),
             "dst_port": 8333, "txid": txid,
             "input_addresses": [w.address], "output_addresses": [receiver_addr],
-            "input_amounts": [huge_amount], "output_amounts": [round(huge_amount * 0.999, 8)],
-            "fee": round(huge_amount * 0.001, 8), "script_type": w.script_type,
+            "input_amounts": [huge_amount], "output_amounts": [round(huge_amount - dev_fee, 8)],
+            "fee": dev_fee, "script_type": w.script_type,
             "geo_country": w.asn_entry["country"], "asn": w.asn_entry["asn"],
         })
         labels.append({"txid": txid, "is_anomaly": 1, "anomaly_type": "profile_deviation",
