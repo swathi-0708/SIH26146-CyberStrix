@@ -115,10 +115,50 @@ for addr, idxs in raw.groupby('first_input_addr').groups.items():
         recent_ips.append(raw.at[i, 'src_ip'])
         amounts_so_far.append(raw.at[i, 'total_input_btc'])
 
+# ---- Graph-linkage feature: was this row's sender address just created as
+# someone's output? ----
+# Peeling chains burn a brand-new address every hop (see generate_dataset.py:
+# current_addr = change_addr), so every sender-history feature above is
+# structurally blind to them -- the address has never been seen before, full
+# stop. The only way to see this pattern is to follow the money: hop N's
+# output becomes hop N+1's input. That's a graph edge (txn -> wallet -> txn),
+# not a wallet-identity feature, computed here in GLOBAL time order (not
+# grouped by sender, since the link crosses from one throwaway address to the
+# next).
+#
+# Window = 3 hours: peeling-chain hops are 5-45 min apart (generator-enforced),
+# comfortably inside this window. Normal wallets' own cadence is 30min-3days
+# (regular) or 2-20min (merchant/exchange hard negatives) -- a regular wallet
+# spending its own long-standing address shortly after receiving into it is
+# rare but possible, so this feature is a strong, not perfect, signal. That's
+# expected and fine -- it's real structural evidence, not a synthetic shortcut.
+LINK_WINDOW = pd.Timedelta('3h')
+raw_sorted_idx = raw.sort_values('timestamp_dt').index.tolist()
+
+raw['input_addr_is_recent_output'] = 0
+raw['minutes_since_addr_last_output'] = -1.0
+
+last_output_time = {}  # address -> most recent timestamp it appeared as an output
+
+for i in raw_sorted_idx:
+    addr = raw.at[i, 'first_input_addr']
+    t = raw.at[i, 'timestamp_dt']
+
+    if addr in last_output_time:
+        gap_min = (t - last_output_time[addr]).total_seconds() / 60.0
+        raw.at[i, 'minutes_since_addr_last_output'] = gap_min
+        if (t - last_output_time[addr]) <= LINK_WINDOW:
+            raw.at[i, 'input_addr_is_recent_output'] = 1
+
+    # NOW fold this row's outputs into the index, so it can only affect FUTURE rows
+    for out_addr in raw.at[i, 'output_list']:
+        last_output_time[out_addr] = t
+
 feature_cols = [
     'txid', 'n_inputs', 'n_outputs', 'n_unique_input_addresses',
     'n_unique_output_addresses', 'total_input_btc', 'total_output_btc',
     'input_output_ratio', 'fan_in_5plus', 'output_min_max_ratio', 'fee', 'fee_ratio',
+    'input_addr_is_recent_output', 'minutes_since_addr_last_output',
     'first_input_addr',
     'sender_tx_count_1h', 'sender_tx_count_24h', 'sender_time_since_last_tx_min',
     'sender_distinct_asn_last10', 'sender_distinct_ip_last10', 'sender_amount_zscore',

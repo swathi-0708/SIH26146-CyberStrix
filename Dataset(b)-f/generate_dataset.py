@@ -425,8 +425,8 @@ def main():
     for _ in range(8):
         r, l = inject_wallet_reuse_burst(wallets, rand_time())
         all_rows += r; all_labels += l
-    for _ in range(6):
-        r, l = inject_structuring(wallets, rand_time())
+    for _ in range(15):
+        r, l = inject_structuring(wallets, rand_time(), n_tx=5)
         all_rows += r; all_labels += l
     for _ in range(6):
         r, l = inject_ip_hopping(wallets, rand_time())

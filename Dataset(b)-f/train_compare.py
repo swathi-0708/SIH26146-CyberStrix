@@ -22,6 +22,7 @@ FEATURE_COLS = [
     'n_unique_output_addresses', 'total_input_btc',
     'input_output_ratio', 'fan_in_5plus',
     'output_min_max_ratio', 'fee', 'fee_ratio',
+    'input_addr_is_recent_output', 'minutes_since_addr_last_output',
     # behavioral / velocity features (causal, per-sender history) --
     # these are what give the model any chance on structuring, ip_hopping,
     # wallet_reuse_burst and profile_deviation, which have near-zero signal
@@ -41,7 +42,7 @@ scale_pos_weight = neg / pos
 print(f"Train imbalance: {neg} normal, {pos} anomaly, scale_pos_weight={scale_pos_weight:.2f}\n")
 
 models = {
-    'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=1000, random_state=42),
+    'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=2000, random_state=42),
     'Random Forest': RandomForestClassifier(n_estimators=200, class_weight='balanced', random_state=42),
     'XGBoost': XGBClassifier(
         n_estimators=200, max_depth=5, learning_rate=0.1,

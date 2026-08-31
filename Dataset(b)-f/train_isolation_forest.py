@@ -30,6 +30,7 @@ FEATURE_COLS = [
     'n_unique_output_addresses', 'total_input_btc',
     'input_output_ratio', 'fan_in_5plus',
     'output_min_max_ratio', 'fee', 'fee_ratio',
+    'input_addr_is_recent_output', 'minutes_since_addr_last_output',
     'sender_tx_count_1h', 'sender_tx_count_24h', 'sender_time_since_last_tx_min',
     'sender_distinct_asn_last10', 'sender_distinct_ip_last10', 'sender_amount_zscore',
 ]
