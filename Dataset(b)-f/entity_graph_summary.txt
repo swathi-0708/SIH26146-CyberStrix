@@ -1,0 +1,25 @@
+Top 15 most-connected wallets (in+out degree):
+  wallet #499: degree=21, country=IN [ALERTED x29, worst=high]
+  wallet #306: degree=21, country=DE [ALERTED x29, worst=high]
+  wallet #390: degree=20, country=DE
+  wallet #113: degree=20, country=FR
+  wallet #445: degree=19, country=US
+  wallet #543: degree=18, country=DE [ALERTED x1, worst=medium-high]
+  wallet #330: degree=18, country=FR
+  wallet #471: degree=18, country=US
+  wallet #452: degree=18, country=US
+  wallet #523: degree=17, country=US
+  wallet #274: degree=17, country=NL
+  wallet #448: degree=17, country=JP
+  wallet #458: degree=17, country=IN
+  wallet #556: degree=17, country=US
+  wallet #591: degree=17, country=IN
+
+Direct links between two alerted wallets (both endpoints flagged):
+  #515 -> #602: 7 tx, 0.6849 BTC
+  #308 -> #579: 1 tx, 0.0592 BTC
+  #308 -> #150: 1 tx, 0.1057 BTC
+  #150 -> #65: 1 tx, 0.0612 BTC
+  #510 -> #615: 2 tx, 0.1198 BTC
+  #499 -> #58: 9 tx, 0.1095 BTC, flagged link (high)
+  #238 -> #368: 2 tx, 0.2018 BTC, flagged link (worth reviewing)
