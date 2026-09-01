@@ -159,6 +159,19 @@ df["reasons"] = df.apply(
 # 5. Generate alerts
 # -------------------------
 
+# Save transaction-level scores for wallet aggregation
+df[
+    [
+        "txid",
+        "sender_wallet",
+        "anomaly",
+        "anomaly_score"
+    ]
+].to_csv(
+    "output/transaction_anomaly_scores.csv",
+    index=False
+)
+
 alerts = df[df["anomaly"] == -1].copy()
 
 alerts = alerts.sort_values(
