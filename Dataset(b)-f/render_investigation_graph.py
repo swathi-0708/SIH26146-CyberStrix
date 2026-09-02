@@ -44,7 +44,10 @@ def render(sub, focus_entity, out_path):
         cdn_resources="in_line",
     )
     net.barnes_hut(
-        gravity=-3000, central_gravity=0.2, spring_length=120, spring_strength=0.03
+        gravity=-3000, central_gravity=0.2, spring_length=150, spring_strength=0.03,
+        overlap=1,  # vis-network's barnesHut.avoidOverlap, range 0-1 -- 1 = max
+        # spacing based on node size, stops nodes stacking on top of each
+        # other in dense areas (per vis-network's own physics docs)
     )
 
     for n, d in sub.nodes(data=True):
@@ -59,7 +62,14 @@ def render(sub, focus_entity, out_path):
             label = str(d.get("ip", n)).replace("ip:", "")
         elif is_disposable and tier is None:
             color, size, shape = "#5a616b", 8, "dot"
-            label = ""
+            label = " "  # NOT "" -- pyvis treats "" as falsy and silently
+            # falls back to using the raw node id as the label (confirmed in
+            # pyvis's own add_node source: `if label: ... else: node_label =
+            # n_id`). For disposable nodes the id IS the full address string,
+            # so label="" was rendering every disposable node's full address
+            # as text -- that's what was cluttering the graph, not physics.
+            # A single space is truthy, so pyvis keeps it, and renders as
+            # effectively blank.
         else:
             color = TIER_COLOR[tier] if tier else TIER_COLOR["none"]
             size = 14 + 4 * min(int(float(d.get("n_alerts", 0))), 6)
