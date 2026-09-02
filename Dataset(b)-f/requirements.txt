@@ -15,3 +15,4 @@ networkx
 pyvis
 geoip2fast
 faker
+streamlit
