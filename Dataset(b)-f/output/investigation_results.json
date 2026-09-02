@@ -1,0 +1,55 @@
+{
+  "graph_nodes": 5634,
+  "graph_edges": 7759,
+  "queries": [
+    {
+      "entity": "674",
+      "n_hop": {
+        "hops": 2,
+        "subgraph_nodes": 154,
+        "subgraph_edges": 159
+      },
+      "fund_flow": {
+        "direction": "both",
+        "subgraph_nodes": 154,
+        "subgraph_edges": 159
+      }
+    },
+    {
+      "entity": "639",
+      "n_hop": {
+        "hops": 2,
+        "subgraph_nodes": 167,
+        "subgraph_edges": 171
+      },
+      "fund_flow": {
+        "direction": "both",
+        "subgraph_nodes": 167,
+        "subgraph_edges": 171
+      }
+    },
+    {
+      "entity": "312",
+      "n_hop": {
+        "hops": 2,
+        "subgraph_nodes": 263,
+        "subgraph_edges": 315
+      },
+      "fund_flow": {
+        "direction": "both",
+        "subgraph_nodes": 263,
+        "subgraph_edges": 315
+      }
+    }
+  ],
+  "shortest_path_sample": {
+    "from": "674",
+    "to": "639",
+    "path": [
+      "674",
+      "527",
+      "639"
+    ],
+    "hop_count": 2
+  }
+}

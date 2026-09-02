@@ -1,29 +1,41 @@
 Top 15 most-connected profile wallets (in+out degree):
-  wallet #674: degree=69, country=DE [ALERTED x33, worst=high]
-  wallet #650: degree=62, country=DE
-  wallet #260: degree=60, country=IN
-  wallet #639: degree=58, country=US [ALERTED x29, worst=high]
-  wallet #665: degree=47, country=US
-  wallet #312: degree=45, country=RO [ALERTED x32, worst=high]
-  wallet #525: degree=40, country=IN [ALERTED x30, worst=high]
-  wallet #200: degree=37, country=FR [ALERTED x30, worst=high]
-  wallet #32: degree=36, country=RO
-  wallet #476: degree=35, country=JP
-  wallet #566: degree=34, country=US [ALERTED x2, worst=medium-high]
-  wallet #610: degree=34, country=JP [ALERTED x29, worst=high]
-  wallet #88: degree=33, country=IN
-  wallet #86: degree=30, country=FR
-  wallet #349: degree=28, country=IN [ALERTED x2, worst=worth reviewing]
+  wallet #411: degree=101, country=RO [ALERTED x31, worst=high]
+  wallet #313: degree=89, country=DE
+  wallet #380: degree=87, country=IN [ALERTED x28, worst=high]
+  wallet #306: degree=87, country=IN
+  wallet #132: degree=61, country=IN
+  wallet #741: degree=55, country=NL [ALERTED x29, worst=high]
+  wallet #451: degree=55, country=US
+  wallet #612: degree=53, country=NL
+  wallet #376: degree=52, country=JP [ALERTED x31, worst=high]
+  wallet #773: degree=51, country=DE [ALERTED x29, worst=high]
+  wallet #767: degree=50, country=IN [ALERTED x21, worst=high]
+  wallet #592: degree=48, country=RO [ALERTED x14, worst=high]
+  wallet #671: degree=47, country=VN
+  wallet #318: degree=47, country=DE [ALERTED x28, worst=high]
+  wallet #750: degree=46, country=IN
 
-Disposable (non-profile) addresses in graph: 4834 -- mostly single-use peeling-chain hops and one-off outputs, visible now as edges/trails but not ranked above
+Disposable (non-profile) addresses in graph: 8197 -- mostly single-use peeling-chain hops and one-off outputs, visible now as edges/trails but not ranked above
 
 Direct links between two alerted wallets (both endpoints flagged):
-  #550 -> #698: 1 tx, 0.0657 BTC
-  #234 -> #9: 2 tx, 0.5819 BTC
-  #682 -> #203: 2 tx, 0.0601 BTC, flagged link (worth reviewing)
-  #200 -> #692: 1 tx, 0.0544 BTC, flagged link (medium-high)
-  #713 -> #306: 1 tx, 0.0705 BTC
-  #272 -> #546: 2 tx, 0.2354 BTC, flagged link (worth reviewing)
-  #232 -> #566: 5 tx, 0.1122 BTC
-  #525 -> #74: 9 tx, 0.0448 BTC, flagged link (high)
-  #631 -> #272: 8 tx, 1.2363 BTC, flagged link (worth reviewing)
+  #223 -> #538: 2 tx, 0.0122 BTC
+  #234 -> #629: 3 tx, 0.7537 BTC
+  #376 -> #741: 1 tx, 0.0457 BTC, flagged link (high)
+  #376 -> #494: 1 tx, 0.0448 BTC, flagged link (high)
+  #291 -> #625: 2 tx, 0.0555 BTC, flagged link (worth reviewing)
+  #152 -> #437: 1 tx, 0.0132 BTC
+  #318 -> #200: 1 tx, 0.0409 BTC, flagged link (medium-high)
+  #318 -> #704: 1 tx, 0.0532 BTC, flagged link (medium-high)
+  #318 -> #460: 1 tx, 0.0210 BTC, flagged link (high)
+  #246 -> #773: 1 tx, 0.0152 BTC
+  #106 -> #592: 3 tx, 0.7854 BTC
+  #773 -> #503: 5 tx, 0.4697 BTC, flagged link (high)
+  #773 -> #241: 1 tx, 0.0808 BTC, flagged link (high)
+  #241 -> #223: 5 tx, 0.1543 BTC
+  #241 -> #238: 1 tx, 0.0289 BTC
+  #681 -> #437: 6 tx, 0.0748 BTC
+  #681 -> #678: 2 tx, 0.0186 BTC
+  #681 -> #501: 1 tx, 0.0147 BTC
+  #56 -> #777: 5 tx, 0.1096 BTC
+  #56 -> #223: 1 tx, 0.0098 BTC
+  #777 -> #460: 5 tx, 0.1307 BTC

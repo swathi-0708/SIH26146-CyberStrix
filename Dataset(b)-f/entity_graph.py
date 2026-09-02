@@ -162,6 +162,36 @@ def build_wallet_graph(tx_df, wallets_df, alerts_df):
                 is_disposable=True,
             )
 
+    def ensure_ip_node(ip_key, ip, tx):
+        if ip_key in G:
+            return
+        # PS requirement: "entity/transaction graph linking IPs, wallets,
+        # and transactions" -- src_ip only, not dst_ip. Checked both against
+        # the actual dataset before deciding: dst_ip is unique per
+        # transaction (6570/6570 distinct in the reference run) -- a random
+        # P2P broadcast peer, not a stable entity, so graphing it is pure
+        # clutter. src_ip is a real per-wallet fingerprint: 790/800 wallets
+        # use exactly one src_ip for their whole history, while the 10
+        # ip_hopping-labeled wallets use 16-26 distinct src_ips each
+        # (verified via groupby on transactions.csv) -- that's the actual
+        # correlatable network-layer signal, and it's the same anomaly type
+        # split_dataset.py's sender_distinct_ip_last10 feature targets.
+        # dst_port is skipped too -- constant 8333 (Bitcoin's standard P2P
+        # port) in every row, zero information.
+        G.add_node(
+            ip_key,
+            is_ip=True,
+            is_disposable=False,
+            ip=ip,
+            country=tx.get("geo_country", "?"),
+            asn=tx.get("asn", "?"),
+            script_type="?",
+            typical_amount_btc=0.0,
+            n_alerts=0,
+            max_priority_tier="none",
+            is_alerted=False,
+        )
+
     skipped_no_endpoints = 0
     disposable_address_refs = 0
 
@@ -189,6 +219,28 @@ def build_wallet_graph(tx_df, wallets_df, alerts_df):
         for key, addr in zip(out_nodes, out_addrs):
             ensure_node(key, addr, tx)
 
+        # ---- IP node + network-layer edges (src_ip -> every input node of
+        # this tx). Kept as edge_type="network", separate n_tx/n_txids
+        # counters from the money-flow edges below -- an IP link isn't a
+        # BTC transfer, and reusing that schema would misrepresent it as one.
+        src_ip = tx.get("src_ip")
+        if src_ip and not pd.isna(src_ip):
+            ip_key = f"ip:{src_ip}"
+            ensure_ip_node(ip_key, src_ip, tx)
+            for dst_node in in_nodes:
+                if G.has_edge(ip_key, dst_node):
+                    e = G[ip_key][dst_node]
+                    e["n_tx"] += 1
+                    e["txids"].append(tx["txid"])
+                else:
+                    G.add_edge(
+                        ip_key,
+                        dst_node,
+                        edge_type="network",
+                        n_tx=1,
+                        txids=[tx["txid"]],
+                    )
+
         n_pairs = len(in_nodes) * len(out_nodes)
         amount_per_pair = (total_out / n_pairs) if n_pairs else 0.0
 
@@ -215,6 +267,7 @@ def build_wallet_graph(tx_df, wallets_df, alerts_df):
                     G.add_edge(
                         src,
                         dst,
+                        edge_type="money",
                         n_tx=1,
                         total_btc=amount_per_pair,
                         total_fee=tx["fee"] / n_pairs,
@@ -253,37 +306,67 @@ def render_pyvis_html(G, alerted_nodes, out_path):
     )
 
     for n, d in G.nodes(data=True):
-        tier = d["max_priority_tier"] if d["max_priority_tier"] != "none" else None
+        is_ip = d.get("is_ip", False)
         is_disposable = d.get("is_disposable", False)
-        # disposable addresses (no wallets_reference.csv row) render smaller,
-        # dimmer, and unlabeled by default -- they're the trail, not the
-        # focus, unless they happen to also carry an alert
-        if is_disposable and tier is None:
+        tier = d["max_priority_tier"] if d["max_priority_tier"] != "none" else None
+
+        if is_ip:
+            # network-layer node -- visually distinct (square, blue) so it
+            # reads as a different kind of entity from wallets/addresses,
+            # not just another dot in the same color scale.
+            color = "#4895ef"
+            size = 16
+            label = n.replace("ip:", "")
+            shape = "square"
+        elif is_disposable and tier is None:
+            # disposable addresses (no wallets_reference.csv row) render
+            # smaller, dimmer, and unlabeled by default -- they're the
+            # trail, not the focus, unless they happen to also carry an alert
             color = "#5a616b"
             size = 8
             label = ""
+            shape = "dot"
         else:
             color = TIER_COLOR[tier]
             size = 14 + 4 * min(d["n_alerts"], 6)
-            label = f"#{n}" if not is_disposable else n[:8]
-        node_desc = (
-            f"wallet #{n}" if not is_disposable else f"disposable address {n[:12]}..."
-        )
-        title = (
-            f"{node_desc}<br>country: {d['country']}  asn: {d['asn']}<br>"
-            f"script: {d['script_type']}<br>alerts: {d['n_alerts']} "
-            f"(worst: {d['max_priority_tier']})"
-        )
+            label = f"#{n}"
+            shape = "dot"
+
+        if is_ip:
+            title = f"src_ip {n.replace('ip:', '')}<br>country: {d['country']}  asn: {d['asn']}"
+        else:
+            node_desc = f"wallet #{n}" if not is_disposable else f"disposable address {n[:12]}..."
+            title = (
+                f"{node_desc}<br>country: {d['country']}  asn: {d['asn']}<br>"
+                f"script: {d['script_type']}<br>alerts: {d['n_alerts']} "
+                f"(worst: {d['max_priority_tier']})"
+            )
+
         net.add_node(
             n,
             label=label,
             title=title,
             color=color,
             size=size,
-            borderWidth=3 if d["is_alerted"] else 1,
+            shape=shape,
+            borderWidth=3 if d.get("is_alerted") else 1,
         )
 
     for u, v, d in G.edges(data=True):
+        if d.get("edge_type") == "network":
+            # IP -> wallet link: not a BTC transfer, drawn as a thin dashed
+            # line so it's clearly a different relationship type from money
+            # flow, not just a lighter-weight transaction edge.
+            net.add_edge(
+                u,
+                v,
+                color="#4895ef",
+                width=1,
+                dashes=True,
+                title=f"{d['n_tx']} tx observed from this src_ip",
+                arrows="to",
+            )
+            continue
         tier = d["max_priority_tier"]
         color = TIER_COLOR[tier] if tier else "#4a5058"
         width = 1 + min(d["n_tx"], 8)
@@ -312,11 +395,15 @@ def main():
 
     G, disposable_refs, skipped = build_wallet_graph(tx_df, wallets_df, alerts_df)
     n_disposable_nodes = sum(1 for _, d in G.nodes(data=True) if d.get("is_disposable"))
-    n_wallet_nodes = G.number_of_nodes() - n_disposable_nodes
+    n_ip_nodes = sum(1 for _, d in G.nodes(data=True) if d.get("is_ip"))
+    n_wallet_nodes = G.number_of_nodes() - n_disposable_nodes - n_ip_nodes
+    n_network_edges = sum(1 for _, _, d in G.edges(data=True) if d.get("edge_type") == "network")
 
     print(
         f"Full entity graph: {G.number_of_nodes()} nodes ({n_wallet_nodes} profile wallets + "
-        f"{n_disposable_nodes} disposable addresses), {G.number_of_edges()} distinct address-pair links"
+        f"{n_disposable_nodes} disposable addresses + {n_ip_nodes} src_ip nodes), "
+        f"{G.number_of_edges()} links ({G.number_of_edges() - n_network_edges} money-flow, "
+        f"{n_network_edges} network/IP)"
     )
     if disposable_refs:
         print(
@@ -334,8 +421,14 @@ def main():
     G_export = G.copy()
     for _, _, d in G_export.edges(data=True):
         d["txids"] = ",".join(d["txids"])
-        if d["max_priority_tier"] is None:
+        # network edges (IP -> wallet) don't carry max_priority_tier/total_btc/
+        # total_fee -- they're not money-flow edges. Fill in neutral defaults
+        # so GraphML export doesn't KeyError and every edge has the same key
+        # set (GraphML needs consistent attribute schemas across edges).
+        if d.get("max_priority_tier") is None:
             d["max_priority_tier"] = "none"
+        d.setdefault("total_btc", 0.0)
+        d.setdefault("total_fee", 0.0)
     for _, d in G_export.nodes(data=True):
         if d.get("max_priority_tier") is None:
             d["max_priority_tier"] = "none"
@@ -360,7 +453,9 @@ def main():
     # them by degree wouldn't mean the same thing (see graph_full.graphml /
     # entity_graph_risk.html for the disposable-address trails themselves)
     wallet_degree = {
-        n: deg for n, deg in degree.items() if not G.nodes[n].get("is_disposable")
+        n: deg
+        for n, deg in degree.items()
+        if not G.nodes[n].get("is_disposable") and not G.nodes[n].get("is_ip")
     }
     top = sorted(wallet_degree.items(), key=lambda kv: kv[1], reverse=True)[:15]
     lines.append("Top 15 most-connected profile wallets (in+out degree):")
