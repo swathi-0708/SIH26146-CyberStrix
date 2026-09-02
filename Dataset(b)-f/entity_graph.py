@@ -93,7 +93,7 @@ def build_address_to_wallet(wallets_df):
     return dict(zip(wallets_df["address"], wallets_df["wallet_id"]))
 
 
-def build_wallet_graph(tx_df, wallets_df, alerts_df):
+def build_wallet_graph(tx_df, wallets_df, alerts_df, alerted_txids, tx_tier):
     addr_to_wallet = build_address_to_wallet(wallets_df)
     wallet_info = wallets_df.set_index("wallet_id").to_dict("index")
 
@@ -389,11 +389,12 @@ def main():
     wallets_df = pd.read_csv(WALLETS_PATH)
     alerts_df = pd.read_csv(ALERTS_PATH)
 
-    global alerted_txids, tx_tier
     alerted_txids = set(alerts_df["txid"])
     tx_tier = dict(zip(alerts_df["txid"], alerts_df["priority_tier"]))
 
-    G, disposable_refs, skipped = build_wallet_graph(tx_df, wallets_df, alerts_df)
+    G, disposable_refs, skipped = build_wallet_graph(
+        tx_df, wallets_df, alerts_df, alerted_txids, tx_tier
+    )
     n_disposable_nodes = sum(1 for _, d in G.nodes(data=True) if d.get("is_disposable"))
     n_ip_nodes = sum(1 for _, d in G.nodes(data=True) if d.get("is_ip"))
     n_wallet_nodes = G.number_of_nodes() - n_disposable_nodes - n_ip_nodes
