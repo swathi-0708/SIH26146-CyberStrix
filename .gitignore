@@ -1,16 +1,28 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
 
-/output/
-generate_dataset_v1_backup.py
-check.py
-split_dataset.py
-train_compare.py
-tune_threshold.py
-real_asn_ips.json
+# Virtual environments
+.venv/
+venv/
+env/
 
-feature_extractor.py
-generate_dataset.py
-swathi/
+# Environment / secrets
+.env
 
-et(b)-f*
+# Generated Dataset B output
+/Dataset(b)-f/output/
+
+# Generated model artifacts
+*.pkl
+*.joblib
+
+# Old archive
+/archive/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

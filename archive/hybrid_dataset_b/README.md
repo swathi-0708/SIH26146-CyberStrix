@@ -1,1 +1,0 @@
-# SIH26146-CyberStrix
