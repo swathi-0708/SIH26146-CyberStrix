@@ -1099,7 +1099,6 @@ else:
             st.iframe(
                 graph_html,
                 height=680,
-                scrolling=False,
             )
 
         elif GRAPH_HTML_FILE.exists():
@@ -1114,7 +1113,6 @@ else:
             st.iframe(
                 graph_html,
                 height=680,
-                scrolling=True,
             )
 
         else:
@@ -1175,7 +1173,7 @@ else:
                     hop_graph, selected_txid if "selected_txid" in locals() else ""
                 )
 
-                st.iframe(hop_html, height=680,)
+                st.iframe(hop_html, height=680, scrolling=False)
 
     # --------------------------------------------------------
     # SHORTEST PATH
@@ -1205,7 +1203,7 @@ else:
                     path_graph, selected_txid if "selected_txid" in locals() else ""
                 )
 
-                st.iframe(path_html, height=680,)
+                st.iframe(path_html, height=680, scrolling=False)
 
     # --------------------------------------------------------
     # FUND FLOW
