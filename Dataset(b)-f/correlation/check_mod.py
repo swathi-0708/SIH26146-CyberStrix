@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-from network_correlation import NETWORK_CORR_COLS
+from network_corr import NETWORK_CORR_COLS
 
 train_df = pd.read_csv("output/train.csv")
 feature_cols = [

@@ -18,7 +18,7 @@ import random
 import re
 from collections import deque
 from ingest import load_transactions
-from network_correlation import add_network_correlation_features, NETWORK_CORR_COLS
+from network_corr import add_network_corr_features, NETWORK_CORR_COLS
 
 random.seed(42)
 
@@ -149,10 +149,10 @@ raw["timestamp_dt"] = pd.to_datetime(raw["timestamp"], format="mixed", utc=True)
 # ASNs, unique countries, plus cross-country / multi-ASN activity flags.
 # Causal (history strictly before the current row) and grouped by the same
 # first_input_addr sender used everywhere else in this file -- see
-# network_correlation.py's module docstring for the full rationale. This is
+# network_corr.py's module docstring for the full rationale. This is
 # the "Network-layer work beyond src_ip" item from RUN_ORDER.md's still-open
 # list: dst_ip/dst_port/asn/geo_country were ingested but never used until now.
-raw = add_network_correlation_features(raw)
+raw = add_network_corr_features(raw)
 
 raw["sender_tx_count_1h"] = 0
 raw["sender_tx_count_24h"] = 0
