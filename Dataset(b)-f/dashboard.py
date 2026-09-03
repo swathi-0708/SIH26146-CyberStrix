@@ -30,14 +30,21 @@ GRAPH_HTML_FILE = OUTPUT_DIR / "entity_graph_ip_tx_wallet_focused.html"
 # doesn't exist in this pipeline.
 # --------------------------------------------------------------
 TIER_COLORS = {
-    "high": "#d64545",
-    "medium-high": "#c98a3e",
-    "worth reviewing": "#b8a13c",
-    "none": "#5b6472",
+    "high": "#B23A3A",
+    "medium-high": "#C97A2B",
+    "worth reviewing": "#A88A2A",
+    "none": "#8FA0AE",
 }
-BG_COLOR = "#12141a"
-PANEL_COLOR = "#181b22"
-ACCENT_COLOR = "#4f8ff7"
+# One accent color drives the whole app -- #246390 -- instead of a
+# separate unrelated navy. The graph canvas is a darker shade of the
+# SAME blue (not a different hue), so it still reads as "part of the
+# same app" rather than a bolted-on dark panel. A dark canvas for the
+# graph itself stays intentional: dense multi-colored nodes read
+# better against dark than white, a standard pattern in security/
+# investigation tooling. The surrounding page stays white/light per
+# .streamlit/config.toml.
+ACCENT_COLOR = "#246390"
+GRAPH_BG_COLOR = "#132B3D"  # darkened #246390, same hue family
 
 
 # ============================================================
@@ -48,37 +55,6 @@ st.set_page_config(
     page_title="CyberStrix Investigator",
     page_icon=":mag:",
     layout="wide",
-)
-
-# --------------------------------------------------------------
-# Theme: Streamlit's default is a plain white page. This app embeds
-# a dark pyvis graph (bgcolor #0f1117) directly inside it, so the
-# default produces a jarring white-card-on-white-page frame around
-# a dark graph. Pinning a single dark background + panel color here
-# keeps the whole page one consistent surface instead of two
-# clashing ones. No gradients, no glass, just a flat dark ground
-# with enough contrast to read tier colors clearly.
-# --------------------------------------------------------------
-st.markdown(
-    f"""
-    <style>
-    .stApp {{
-        background-color: {BG_COLOR};
-    }}
-    [data-testid="stSidebar"] {{
-        background-color: {PANEL_COLOR};
-    }}
-    [data-testid="stMetric"] {{
-        background-color: {PANEL_COLOR};
-        padding: 14px 16px;
-        border-radius: 6px;
-    }}
-    div[data-testid="stDataFrame"] {{
-        background-color: {PANEL_COLOR};
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True,
 )
 
 
@@ -325,7 +301,7 @@ def render_investigation_graph(G, selected_txid):
     net = Network(
         height="650px",
         width="100%",
-        bgcolor=BG_COLOR,
+        bgcolor=GRAPH_BG_COLOR,
         font_color="#e6e8ec",
         directed=True,
     )
@@ -391,12 +367,18 @@ def render_investigation_graph(G, selected_txid):
         # ----------------------------------------------------
 
         if node_id == highlighted_node:
-            color = "#e8564f"
+            # Bright accent blue, NOT red -- deliberately distinct from
+            # TIER_COLORS["high"] (#B23A3A). The earlier value (#e8564f)
+            # was close enough to that red that "this is the node you
+            # selected" and "this is a high-priority alert" could be
+            # confused at a glance, which undermines the whole point of
+            # color-coding severity.
+            color = "#4A9FD8"
             size = 35
 
         elif node_type == "transaction":
             color = TIER_COLORS.get(
-                str(data.get("priority_tier", "")).lower(), "#8a90a3"
+                str(data.get("priority_tier", "")).lower(), TIER_COLORS["none"]
             )
             size = 25
 
@@ -410,7 +392,7 @@ def render_investigation_graph(G, selected_txid):
             # so every wallet silently fell through to the same color
             # regardless of alert status.
             priority = str(data.get("max_priority_tier", "")).lower()
-            color = TIER_COLORS.get(priority, "#6f9bd1")
+            color = TIER_COLORS.get(priority, TIER_COLORS["none"])
             size = 22
 
         else:
@@ -575,7 +557,7 @@ table["if_score"] = table["if_score"].round(4)
 
 st.dataframe(
     table,
-    use_container_width=True,
+    width='stretch',
     hide_index=True,
 )
 
@@ -687,7 +669,7 @@ else:
 
             st.dataframe(
                 shap_df,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
             )
 
@@ -769,13 +751,13 @@ else:
             if col in wallet_tx.columns
         ]
 
-        st.dataframe(wallet_tx[display_cols], use_container_width=True, hide_index=True)
+        st.dataframe(wallet_tx[display_cols], width='stretch', hide_index=True)
         st.subheader("Network Associations")
 
         if unique_ips:
             network_data = pd.DataFrame({"IP Address": sorted(unique_ips)})
 
-            st.dataframe(network_data, use_container_width=True, hide_index=True)
+            st.dataframe(network_data, width='stretch', hide_index=True)
         else:
             st.info("No network associations found for this wallet.")
 
@@ -804,7 +786,7 @@ else:
 
             graph_html = render_investigation_graph(investigation_graph, selected_txid)
 
-            st.components.v1.html(
+            st.iframe(
                 graph_html,
                 height=680,
                 scrolling=False,
@@ -819,7 +801,7 @@ else:
 
             graph_html = GRAPH_HTML_FILE.read_text(encoding="utf-8")
 
-            st.components.v1.html(
+            st.iframe(
                 graph_html,
                 height=680,
                 scrolling=True,
@@ -875,7 +857,7 @@ else:
                     hop_graph, selected_txid if "selected_txid" in locals() else ""
                 )
 
-                st.components.v1.html(hop_html, height=680, scrolling=False)
+                st.iframe(hop_html, height=680, scrolling=False)
 
     # --------------------------------------------------------
     # SHORTEST PATH
@@ -905,7 +887,7 @@ else:
                     path_graph, selected_txid if "selected_txid" in locals() else ""
                 )
 
-                st.components.v1.html(path_html, height=680, scrolling=False)
+                st.iframe(path_html, height=680, scrolling=False)
 
     # --------------------------------------------------------
     # FUND FLOW
@@ -944,7 +926,7 @@ else:
                     flow_graph, selected_txid if "selected_txid" in locals() else ""
                 )
 
-                st.components.v1.html(flow_html, height=680, scrolling=False)
+                st.iframe(flow_html, height=680, scrolling=False)
 
 
 # ============================================================
