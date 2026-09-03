@@ -31,23 +31,63 @@ WALLET_GRAPHML_FILE = OUTPUT_DIR / "entity_graph_wallet_wallet.graphml"
 # --------------------------------------------------------------
 # Single source of truth for tier -> color, used everywhere a tier
 # is drawn (metrics, table, graph nodes) so the same tier is never
-# two different colors in two different places. Only the three
-# tiers build_alerts.py actually produces -- no "critical", it
-# doesn't exist in this pipeline.
+# two different colors in two different places.
+# --------------------------------------------------------------
+# --------------------------------------------------------------
+# Single source of truth for tier -> color, used everywhere a tier
+# is drawn (metrics, table, graph nodes) so the same tier is never
+# two different colors in two different places.
 # --------------------------------------------------------------
 TIER_COLORS = {
-    "high": "#d64545",
+    "high": "#c1442e",
     "medium-high": "#c98a3e",
     "worth reviewing": "#b8a13c",
-    "none": "#5b6472",
+    "none": "#6b6252",
 }
-BG_COLOR = "#12141a"
-PANEL_COLOR = "#181b22"
-ACCENT_COLOR = "#4f8ff7"
+
+# Theme Configurations: Warm Dark Ink & Parchment Light Modes
+THEME_CONFIG = {
+    "Dark": {
+        "BG_INK": "#17140f",         # Page background
+        "PANEL_PAPER": "#1e1a14",    # Report panel background
+        "LINE_HAIRLINE": "#3a3327",  # All rules/dividers
+        "TEXT_PRIMARY": "#ede6d6",   # Primary body text
+        "TEXT_MUTED": "#a89a80",     # Muted labels/secondary text
+        "INPUT_BG": "#242019",
+        "INPUT_HOVER": "#2e271d",
+        "TAG_BG": "#2b241c",
+        "BUTTON_BG": "#262018",
+        "BUTTON_HOVER": "#332a20",
+        "BUTTON_ACTIVE": "#1a1610",
+        "ACCENT_STAMP": "#b3542e",   # Rust accent
+        "ACCENT_SIGNAL": "#6f8a94",  # Steel-cyan technical accent
+        "GRAPH_BG": "#17140f",
+        "GRAPH_FONT": "#ede6d6",
+        "GRAPH_EDGE": "#4a636e",
+    },
+    "Light": {
+        "BG_INK": "#f8f7f4",         # Soft off-white parchment background (deliberately not pure white)
+        "PANEL_PAPER": "#ffffff",    # Crisp paper panel surface
+        "LINE_HAIRLINE": "#dcd8ce",  # Refined neutral hairline rule & border
+        "TEXT_PRIMARY": "#1c1917",   # Dark charcoal body text
+        "TEXT_MUTED": "#6e6658",     # Muted secondary text label
+        "INPUT_BG": "#f3f1ec",       # Input container background
+        "INPUT_HOVER": "#eae7e0",    # Hover state for dropdown options
+        "TAG_BG": "#eeebe4",         # Multiselect tag background
+        "BUTTON_BG": "#f0ede6",      # Button default background
+        "BUTTON_HOVER": "#e5e1d7",   # Button hover background
+        "BUTTON_ACTIVE": "#dad5c9",  # Button active background
+        "ACCENT_STAMP": "#b3542e",   # Rust case stamp accent retained
+        "ACCENT_SIGNAL": "#2c5282",  # Deep slate blue accent (contrast-adjusted)
+        "GRAPH_BG": "#f8f7f4",       # Off-white graph canvas background
+        "GRAPH_FONT": "#1c1917",     # Dark font for node labels in light mode
+        "GRAPH_EDGE": "#718096",     # Clean graph edge color for light mode
+    },
+}
 
 
 # ============================================================
-# PAGE
+# PAGE CONFIGURATION & THEME INITIALIZATION
 # ============================================================
 
 st.set_page_config(
@@ -57,75 +97,187 @@ st.set_page_config(
 )
 
 # --------------------------------------------------------------
-# Theme: Unified dark ground with high-contrast, fully readable
-# inputs, dropdowns, labels, and buttons across the entire dashboard.
+# Session State & Query Parameter Theme Management
+# Default initialization state is "Light" mode.
+# --------------------------------------------------------------
+query_theme = st.query_params.get("theme", None)
+
+if query_theme in ["Light", "Dark"]:
+    st.session_state["theme_mode"] = query_theme
+elif "theme_mode" not in st.session_state:
+    st.session_state["theme_mode"] = "Light"
+
+theme_mode = st.session_state["theme_mode"]
+active_theme = THEME_CONFIG[theme_mode]
+
+BG_INK = active_theme["BG_INK"]
+PANEL_PAPER = active_theme["PANEL_PAPER"]
+LINE_HAIRLINE = active_theme["LINE_HAIRLINE"]
+TEXT_PRIMARY = active_theme["TEXT_PRIMARY"]
+TEXT_MUTED = active_theme["TEXT_MUTED"]
+INPUT_BG = active_theme["INPUT_BG"]
+INPUT_HOVER = active_theme["INPUT_HOVER"]
+TAG_BG = active_theme["TAG_BG"]
+BUTTON_BG = active_theme["BUTTON_BG"]
+BUTTON_HOVER = active_theme["BUTTON_HOVER"]
+BUTTON_ACTIVE = active_theme["BUTTON_ACTIVE"]
+ACCENT_STAMP = active_theme["ACCENT_STAMP"]
+ACCENT_SIGNAL = active_theme["ACCENT_SIGNAL"]
+GRAPH_BG = active_theme["GRAPH_BG"]
+GRAPH_FONT = active_theme["GRAPH_FONT"]
+GRAPH_EDGE = active_theme["GRAPH_EDGE"]
+
+# --------------------------------------------------------------
+# Native Three-Dot Menu Theme Control Injection
+# Inject theme item directly into Streamlit's native menu container
+# --------------------------------------------------------------
+st.components.v1.html(
+    f"""
+    <script>
+    (function() {{
+        const parentDoc = window.parent.document;
+        const currentTheme = "{theme_mode}";
+        
+        function injectThemeToNativeMenu() {{
+            const menuList = parentDoc.querySelector('ul[data-testid="main-menu-list"], ul[role="menu"], [data-testid="stMainMenuPopover"] ul');
+            if (!menuList) return;
+            if (parentDoc.getElementById('native-theme-menu-item')) return;
+            
+            const li = parentDoc.createElement('li');
+            li.id = 'native-theme-menu-item';
+            li.setAttribute('role', 'menuitem');
+            li.style.cssText = 'padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; font-family: "IBM Plex Sans", sans-serif; font-size: 13px; border-bottom: 1px solid rgba(128,128,128,0.2); cursor: default; margin-bottom: 4px;';
+            
+            const labelSpan = parentDoc.createElement('span');
+            labelSpan.innerText = 'THEME';
+            labelSpan.style.cssText = 'font-weight: 600; font-size: 11px; letter-spacing: 0.05em; opacity: 0.75; font-family: "IBM Plex Sans", sans-serif;';
+            
+            const btnContainer = parentDoc.createElement('div');
+            btnContainer.style.cssText = 'display: flex; gap: 4px; border-radius: 3px; padding: 2px; background: rgba(128,128,128,0.15);';
+            
+            ['Light', 'Dark'].forEach(mode => {{
+                const btn = parentDoc.createElement('button');
+                btn.type = 'button';
+                btn.innerText = mode;
+                const isActive = currentTheme === mode;
+                btn.style.cssText = `border: none; padding: 3px 10px; border-radius: 2px; font-size: 12px; font-weight: 500; font-family: "IBM Plex Sans", sans-serif; cursor: pointer; transition: all 0.15s ease; ${{isActive ? 'background: #b3542e; color: #ffffff;' : 'background: transparent; color: inherit; opacity: 0.75;'}}`;
+                
+                btn.onclick = function(e) {{
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (currentTheme !== mode) {{
+                        const searchParams = new URLSearchParams(window.parent.location.search);
+                        searchParams.set('theme', mode);
+                        window.parent.location.search = searchParams.toString();
+                    }}
+                }};
+                btnContainer.appendChild(btn);
+            }});
+            
+            li.appendChild(labelSpan);
+            li.appendChild(btnContainer);
+            menuList.insertBefore(li, menuList.firstChild);
+        }}
+        
+        const observer = new MutationObserver(function() {{
+            injectThemeToNativeMenu();
+        }});
+        
+        observer.observe(parentDoc.body, {{ childList: true, subtree: true }});
+        injectThemeToNativeMenu();
+    }})();
+    </script>
+    """,
+    height=0,
+    width=0,
+)
+
+# --------------------------------------------------------------
+# Theme CSS Injection
 # --------------------------------------------------------------
 st.markdown(
     f"""
     <style>
-    /* --------------------------------------------------------
-       CyberStrix visual theme
-       Professional dark dashboard with high-contrast, fully
-       readable form controls, inputs, dropdowns, and buttons.
-       -------------------------------------------------------- */
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap');
+
+    /* Main application background & body font */
     .stApp {{
-        background: {BG_COLOR};
-        color: #e8ecf2;
+        background-color: {BG_INK} !important;
+        color: {TEXT_PRIMARY} !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
     }}
 
     /* Sidebar container */
     [data-testid="stSidebar"] {{
-        background: {PANEL_COLOR};
-        border-right: 1px solid #2b303a;
+        background-color: {PANEL_PAPER} !important;
+        border-right: 1px solid {LINE_HAIRLINE} !important;
     }}
 
-    /* Typography */
+    /* Headings: Source Serif 4, serif, weight 600 */
     .stApp h1, .stApp h2, .stApp h3, .stApp h4,
     .stApp h5, .stApp h6 {{
-        color: #f5f7fa !important;
+        color: {TEXT_PRIMARY} !important;
+        font-family: 'Source Serif 4', serif !important;
         font-weight: 600 !important;
+        letter-spacing: -0.01em !important;
     }}
 
     .stApp p, .stApp li {{
-        color: #e8ecf2 !important;
+        color: {TEXT_PRIMARY} !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
     }}
 
-    .stApp [data-testid="stCaptionContainer"] {{
-        color: #94a3b8 !important;
+    .stApp [data-testid="stCaptionContainer"],
+    .stApp [data-testid="stCaptionContainer"] * {{
+        color: {TEXT_MUTED} !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
+        font-size: 13px !important;
     }}
 
-    /* Metric cards */
+    /* Hairline rules */
+    hr, [data-testid="stDivider"] {{
+        border-color: {LINE_HAIRLINE} !important;
+    }}
+
+    /* Specific Change 1: Metric ledger cards (single hairline-topped row) */
     [data-testid="stMetric"] {{
-        background: {PANEL_COLOR};
-        border: 1px solid #2b303a;
-        padding: 14px 18px;
-        border-radius: 8px;
+        background: transparent !important;
+        border: none !important;
+        border-top: 1px solid {LINE_HAIRLINE} !important;
+        border-radius: 0px !important;
+        box-shadow: none !important;
+        padding: 10px 0px 8px 0px !important;
+        margin: 0 !important;
     }}
 
     [data-testid="stMetricLabel"],
     [data-testid="stMetricLabel"] * {{
-        color: #94a3b8 !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
+        color: {TEXT_MUTED} !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
+        font-size: 12px !important;
+        font-weight: 400 !important;
     }}
 
     [data-testid="stMetricValue"],
     [data-testid="stMetricValue"] * {{
-        color: #f8fafc !important;
+        color: {TEXT_PRIMARY} !important;
+        font-family: 'Source Serif 4', serif !important;
+        font-size: 28px !important;
         font-weight: 600 !important;
     }}
 
-    /* Widget labels - readable high-contrast on dark background */
+    /* Specific Change 4: Flat form controls, 2px radius, hairline borders */
     .stApp label,
     [data-testid="stWidgetLabel"],
     [data-testid="stWidgetLabel"] *,
     [data-testid="stWidgetLabel"] p,
     [data-testid="stSidebar"] label,
     [data-testid="stSidebar"] [data-testid="stWidgetLabel"] * {{
-        color: #e2e8f0 !important;
-        -webkit-text-fill-color: #e2e8f0 !important;
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
         font-weight: 500 !important;
-        font-size: 14px !important;
+        font-size: 13px !important;
     }}
 
     /* Native text inputs, number inputs, text areas */
@@ -135,174 +287,283 @@ st.markdown(
     [data-testid="stTextInput"] input,
     [data-testid="stNumberInput"] input,
     [data-testid="stTextArea"] textarea {{
-        background-color: #f1f5f9 !important;
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-        caret-color: #0f172a !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 6px !important;
-        font-size: 14px !important;
-        font-weight: 500 !important;
+        background-color: {INPUT_BG} !important;
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
+        caret-color: {TEXT_PRIMARY} !important;
+        border: 1px solid {LINE_HAIRLINE} !important;
+        border-radius: 2px !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 13px !important;
     }}
 
     .stApp input::placeholder,
     .stApp textarea::placeholder {{
-        color: #64748b !important;
-        -webkit-text-fill-color: #64748b !important;
-        opacity: 1 !important;
+        color: {TEXT_MUTED} !important;
+        -webkit-text-fill-color: {TEXT_MUTED} !important;
+        opacity: 0.8 !important;
     }}
 
-    /* BaseWeb selectboxes (closed state & input) */
+    /* BaseWeb selectboxes */
     .stApp [data-baseweb="select"] > div,
     [data-testid="stSidebar"] [data-baseweb="select"] > div {{
-        background-color: #f1f5f9 !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 6px !important;
+        background-color: {INPUT_BG} !important;
+        border: 1px solid {LINE_HAIRLINE} !important;
+        border-radius: 2px !important;
     }}
 
-    /* Ensure text inside selectbox is dark and clearly visible */
     .stApp [data-baseweb="select"] *,
     [data-testid="stSidebar"] [data-baseweb="select"] *,
     .stApp [data-baseweb="select"] span,
     .stApp [data-baseweb="select"] div,
     .stApp [data-baseweb="select"] input,
     .stApp [data-baseweb="select"] p {{
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-        fill: #0f172a !important;
-        font-size: 14px !important;
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
+        fill: {TEXT_PRIMARY} !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
+        font-size: 13px !important;
     }}
 
-    /* BaseWeb dropdown menus / popovers (open list state) */
+    /* Dropdown menus / popovers */
     div[data-baseweb="popover"],
     div[data-baseweb="menu"],
     ul[role="listbox"],
     div[role="listbox"] {{
-        background-color: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 6px !important;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+        background-color: {PANEL_PAPER} !important;
+        border: 1px solid {LINE_HAIRLINE} !important;
+        border-radius: 2px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
     }}
 
     li[role="option"],
     div[role="option"],
     [data-baseweb="menu"] li {{
-        background-color: #ffffff !important;
-        color: #0f172a !important;
+        background-color: {PANEL_PAPER} !important;
+        color: {TEXT_PRIMARY} !important;
     }}
 
     li[role="option"] *,
     div[role="option"] *,
     [data-baseweb="menu"] li * {{
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
     }}
 
-    /* Option hover / active state */
     li[role="option"]:hover,
     li[role="option"][aria-selected="true"],
     div[role="option"]:hover,
     div[role="option"][aria-selected="true"] {{
-        background-color: #e0e7ff !important;
+        background-color: {INPUT_HOVER} !important;
     }}
 
     li[role="option"]:hover *,
     li[role="option"][aria-selected="true"] *,
     div[role="option"]:hover *,
     div[role="option"][aria-selected="true"] * {{
-        color: #1e3a8a !important;
-        -webkit-text-fill-color: #1e3a8a !important;
-        font-weight: 600 !important;
+        color: {ACCENT_STAMP} !important;
+        -webkit-text-fill-color: {ACCENT_STAMP} !important;
+        font-weight: 500 !important;
     }}
 
     /* Multiselect tags */
     .stApp [data-baseweb="tag"],
     [data-testid="stSidebar"] [data-baseweb="tag"] {{
-        background-color: #dbeafe !important;
-        border: 1px solid #bfdbfe !important;
-        border-radius: 4px !important;
+        background-color: {TAG_BG} !important;
+        border: 1px solid {LINE_HAIRLINE} !important;
+        border-radius: 2px !important;
     }}
 
     .stApp [data-baseweb="tag"] *,
     [data-testid="stSidebar"] [data-baseweb="tag"] * {{
-        color: #1e3a8a !important;
-        -webkit-text-fill-color: #1e3a8a !important;
-        fill: #1e3a8a !important;
-        font-weight: 500 !important;
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
+        fill: {TEXT_PRIMARY} !important;
+        font-size: 12px !important;
     }}
 
-    /* Buttons - dark slate with crisp, high-contrast readable text */
+    /* Buttons: rust accent register */
     .stButton > button {{
-        background-color: #242936 !important;
-        color: #f8fafc !important;
-        -webkit-text-fill-color: #f8fafc !important;
-        border: 1px solid #3b4354 !important;
-        border-radius: 6px !important;
-        padding: 8px 18px !important;
+        background-color: {BUTTON_BG} !important;
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
+        border: 1px solid {LINE_HAIRLINE} !important;
+        border-radius: 2px !important;
+        padding: 6px 16px !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
         font-weight: 500 !important;
-        font-size: 14px !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
+        font-size: 13px !important;
+        box-shadow: none !important;
         transition: background-color 0.15s ease, border-color 0.15s ease !important;
     }}
 
     .stButton > button:hover {{
-        background-color: #32394a !important;
-        border-color: {ACCENT_COLOR} !important;
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
+        background-color: {BUTTON_HOVER} !important;
+        border-color: {ACCENT_STAMP} !important;
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
     }}
 
     .stButton > button:active {{
-        background-color: #1b1f2b !important;
+        background-color: {BUTTON_ACTIVE} !important;
     }}
 
     .stButton > button * {{
-        color: #f8fafc !important;
-        -webkit-text-fill-color: #f8fafc !important;
+        color: {TEXT_PRIMARY} !important;
+        -webkit-text-fill-color: {TEXT_PRIMARY} !important;
     }}
 
     /* Sliders */
     [data-testid="stSlider"] * {{
-        color: #e2e8f0 !important;
+        color: {TEXT_PRIMARY} !important;
     }}
 
-    /* Tabs */
+    /* Tabs: rust accent active indicator */
     .stApp [data-testid="stTabs"] [data-baseweb="tab-list"] {{
         background-color: transparent !important;
-        border-bottom: 1px solid #2b303a !important;
+        border-bottom: 1px solid {LINE_HAIRLINE} !important;
+        gap: 16px !important;
     }}
 
     .stApp [data-testid="stTabs"] button {{
-        color: #94a3b8 !important;
-        -webkit-text-fill-color: #94a3b8 !important;
-        font-size: 14px !important;
+        color: {TEXT_MUTED} !important;
+        -webkit-text-fill-color: {TEXT_MUTED} !important;
+        font-family: 'IBM Plex Sans', sans-serif !important;
+        font-size: 13px !important;
+        border-radius: 0px !important;
+        padding: 8px 12px !important;
     }}
 
     .stApp [data-testid="stTabs"] button[aria-selected="true"] {{
-        color: {ACCENT_COLOR} !important;
-        -webkit-text-fill-color: {ACCENT_COLOR} !important;
+        color: {ACCENT_STAMP} !important;
+        -webkit-text-fill-color: {ACCENT_STAMP} !important;
         font-weight: 600 !important;
-        border-bottom-color: {ACCENT_COLOR} !important;
+        border-bottom: 2px solid {ACCENT_STAMP} !important;
     }}
 
     /* Dataframe container */
     div[data-testid="stDataFrame"] {{
-        border: 1px solid #2b303a;
-        border-radius: 8px;
+        border: 1px solid {LINE_HAIRLINE};
+        border-radius: 2px;
     }}
 
-    /* Clean iframe container - remove borders, blend with dark background */
+    /* Monospace for technical labels/values */
+    code, pre, [data-testid="stJson"] {{
+        font-family: 'IBM Plex Mono', monospace !important;
+    }}
+
+    /* Specific Change 5: Instrument panel framing & corner ticks */
+    .instrument-panel {{
+        position: relative;
+        border: 1px solid {ACCENT_SIGNAL} !important;
+        background-color: {BG_INK} !important;
+        padding: 8px;
+        margin: 8px 0;
+    }}
+
+    .instrument-panel::before {{
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        width: 10px;
+        height: 10px;
+        border-top: 1px solid {ACCENT_SIGNAL};
+        border-left: 1px solid {ACCENT_SIGNAL};
+        pointer-events: none;
+        z-index: 10;
+    }}
+
+    .instrument-panel::after {{
+        content: '';
+        position: absolute;
+        bottom: -4px;
+        right: -4px;
+        width: 10px;
+        height: 10px;
+        border-bottom: 1px solid {ACCENT_SIGNAL};
+        border-right: 1px solid {ACCENT_SIGNAL};
+        pointer-events: none;
+        z-index: 10;
+    }}
+
+    .corner-tick-tr {{
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        width: 10px;
+        height: 10px;
+        border-top: 1px solid {ACCENT_SIGNAL};
+        border-right: 1px solid {ACCENT_SIGNAL};
+        pointer-events: none;
+        z-index: 10;
+    }}
+
+    .corner-tick-bl {{
+        position: absolute;
+        bottom: -4px;
+        left: -4px;
+        width: 10px;
+        height: 10px;
+        border-bottom: 1px solid {ACCENT_SIGNAL};
+        border-left: 1px solid {ACCENT_SIGNAL};
+        pointer-events: none;
+        z-index: 10;
+    }}
+
+    /* Expander raw data corner-tick treatment */
+    [data-testid="stExpander"] {{
+        border: 1px solid {ACCENT_SIGNAL} !important;
+        border-radius: 2px !important;
+        background-color: {BG_INK} !important;
+        position: relative !important;
+    }}
+
+    [data-testid="stExpander"]::before {{
+        content: '';
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        width: 10px;
+        height: 10px;
+        border-top: 1px solid {ACCENT_SIGNAL};
+        border-left: 1px solid {ACCENT_SIGNAL};
+        pointer-events: none;
+    }}
+
+    [data-testid="stExpander"]::after {{
+        content: '';
+        position: absolute;
+        bottom: -4px;
+        right: -4px;
+        width: 10px;
+        height: 10px;
+        border-bottom: 1px solid {ACCENT_SIGNAL};
+        border-right: 1px solid {ACCENT_SIGNAL};
+        pointer-events: none;
+    }}
+
+    /* Technical header style */
+    .tech-title {{
+        font-family: 'IBM Plex Mono', monospace !important;
+        color: {ACCENT_SIGNAL} !important;
+        font-size: 13px !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }}
+
+    /* Clean iframe container */
     iframe {{
         border: none !important;
-        background-color: {BG_COLOR} !important;
+        background-color: {BG_INK} !important;
     }}
 
     [data-testid="stCustomComponentV1"] {{
         border: none !important;
-        background-color: {BG_COLOR} !important;
+        background-color: {BG_INK} !important;
     }}
 
-    /* Clean spacing */
     .block-container {{
         padding-top: 2rem;
         padding-bottom: 3rem;
@@ -472,7 +733,7 @@ def build_investigation_graph(txid, wallet_id):
 def clean_graph_html(html_str):
     """
     Remove the default PyVis/Bootstrap white card border and white background,
-    making the embedded graph container blend seamlessly into the dark theme.
+    making the embedded graph container blend seamlessly into the dark paper theme.
     """
     if not html_str:
         return ""
@@ -481,11 +742,12 @@ def clean_graph_html(html_str):
       html, body {{
         margin: 0 !important;
         padding: 0 !important;
-        background-color: {BG_COLOR} !important;
+        background-color: {BG_INK} !important;
         overflow: hidden !important;
+        font-family: 'IBM Plex Mono', monospace !important;
       }}
       .card {{
-        background-color: {BG_COLOR} !important;
+        background-color: {BG_INK} !important;
         border: none !important;
         box-shadow: none !important;
         margin: 0 !important;
@@ -494,12 +756,12 @@ def clean_graph_html(html_str):
       .card-body {{
         padding: 0 !important;
         margin: 0 !important;
-        background-color: {BG_COLOR} !important;
+        background-color: {BG_INK} !important;
       }}
       #mynetwork {{
-        border: 1px solid #2b303a !important;
-        border-radius: 8px !important;
-        background-color: {BG_COLOR} !important;
+        border: 1px solid {ACCENT_SIGNAL} !important;
+        border-radius: 0px !important;
+        background-color: {BG_INK} !important;
       }}
       .vis-navigation {{
         background: transparent !important;
@@ -590,8 +852,8 @@ def render_investigation_graph(G, selected_txid):
     net = Network(
         height="650px",
         width="100%",
-        bgcolor=BG_COLOR,
-        font_color="#e6e8ec",
+        bgcolor=GRAPH_BG,
+        font_color=GRAPH_FONT,
         directed=True,
     )
 
@@ -627,10 +889,7 @@ def render_investigation_graph(G, selected_txid):
     # Add nodes
     # --------------------------------------------------------
 
-    # Computed ONCE per render call, not per-node inside the loop below --
-    # rescanning the whole graph for every single node just to check "is
-    # this the highlighted one" is O(n^2) and only gets away with it at
-    # small focused-subgraph sizes.
+    # Computed ONCE per render call, not per-node inside the loop below
     highlighted_node = str(find_transaction_node(G, selected_txid))
 
     for node, data in G.nodes(data=True):
@@ -656,31 +915,23 @@ def render_investigation_graph(G, selected_txid):
         # ----------------------------------------------------
 
         if node_id == highlighted_node:
-            color = "#e8564f"
+            color = "#c1442e"
             size = 35
 
         elif node_type == "transaction":
             color = TIER_COLORS.get(
-                str(data.get("priority_tier", "")).lower(), "#8a90a3"
+                str(data.get("priority_tier", "")).lower(), "#6b6252"
             )
             size = 25
 
         elif node_type == "wallet":
-            # Alerted wallets are colored by tier, normal counterparties
-            # neutral grey-blue. NOTE: wallet nodes carry their tier under
-            # "max_priority_tier" (a wallet can have several alerted
-            # transactions; this is the worst one) -- entity_graph.py only
-            # ever sets a plain "priority_tier" on TRANSACTION nodes.
-            # Reading "priority_tier" here always misses on wallet nodes,
-            # so every wallet silently fell through to the same color
-            # regardless of alert status.
             priority = str(data.get("max_priority_tier", "")).lower()
-            color = TIER_COLORS.get(priority, "#6f9bd1")
+            color = TIER_COLORS.get(priority, ACCENT_SIGNAL)
             size = 22
 
         else:
             # IP
-            color = ACCENT_COLOR
+            color = ACCENT_SIGNAL
             size = 17
 
         # ----------------------------------------------------
@@ -723,7 +974,7 @@ def render_investigation_graph(G, selected_txid):
             str(target),
             title=edge_label,
             label=edge_label if edge_label else "",
-            color="#3a3f4b",
+            color=GRAPH_EDGE,
         )
 
     # --------------------------------------------------------
@@ -780,8 +1031,8 @@ def render_wallet_graph(G_wallet, selected_wallet=None):
     net = Network(
         height="650px",
         width="100%",
-        bgcolor=BG_COLOR,
-        font_color="#e6e8ec",
+        bgcolor=GRAPH_BG,
+        font_color=GRAPH_FONT,
         directed=True,
     )
 
@@ -809,10 +1060,10 @@ def render_wallet_graph(G_wallet, selected_wallet=None):
 
         priority = str(data.get("max_priority_tier", "")).lower()
         if node_id == str(selected_wallet):
-            color = "#e8564f"
+            color = "#c1442e"
             size = 34
         else:
-            color = TIER_COLORS.get(priority, "#6f9bd1")
+            color = TIER_COLORS.get(priority, ACCENT_SIGNAL)
             size = 23
 
         tooltip = (
@@ -843,6 +1094,7 @@ def render_wallet_graph(G_wallet, selected_wallet=None):
             str(target),
             title=edge_title,
             label=str(data.get("n_tx", "")),
+            color=GRAPH_EDGE,
         )
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as temp:
@@ -861,6 +1113,7 @@ def show_graph_explorer():
     """Top-level switch between the three investigation graph views."""
     st.divider()
     st.header("Graph Explorer")
+    st.markdown('<div class="tech-title">Entity Graph Instrumentation</div>', unsafe_allow_html=True)
     st.caption(
         "Switch between the three entity-graph views generated by the "
         "CyberStrix pipeline."
@@ -879,7 +1132,9 @@ def show_graph_explorer():
     if graph_choice == "IP → Transaction → Wallet":
         if GRAPH_HTML_FILE.exists():
             html = GRAPH_HTML_FILE.read_text(encoding="utf-8")
+            st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
             st.components.v1.html(clean_graph_html(html), height=720)
+            st.markdown('</div>', unsafe_allow_html=True)
         elif GRAPHML_FILE.exists():
             st.info("Focused HTML not found; the GraphML exists.")
             st.caption("Run entity_graph_modified.py to regenerate the graph.")
@@ -889,7 +1144,9 @@ def show_graph_explorer():
     elif graph_choice == "Risk Cluster":
         if RISK_GRAPH_HTML_FILE.exists():
             html = RISK_GRAPH_HTML_FILE.read_text(encoding="utf-8")
+            st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
             st.components.v1.html(clean_graph_html(html), height=720)
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning(
                 "Risk Cluster graph not found. Run entity_graph(clustered).py first."
@@ -948,7 +1205,9 @@ def show_graph_explorer():
                 st.info("No direct wallet-to-wallet connections found.")
 
             wallet_html = render_wallet_graph(wallet_graph, selected)
+            st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
             st.components.v1.html(wallet_html, height=720)
+            st.markdown('</div>', unsafe_allow_html=True)
 
 
 show_graph_explorer()
@@ -962,8 +1221,7 @@ st.title("CyberStrix Investigator")
 
 st.caption(
     "Offline Bitcoin transaction anomaly detection and investigation dashboard "
-    "· runs fully offline, no network calls · synthetic demonstration data, "
-    "not real seized evidence"
+    "running fully offline using synthetic demonstration data."
 )
 
 
@@ -1142,13 +1400,13 @@ else:
     priority = str(row["priority_tier"])
 
     if priority == "high":
-        st.error("HIGH PRIORITY")
+        st.markdown(f'<div style="color: {TIER_COLORS["high"]}; font-weight: 600; font-family: \'IBM Plex Sans\', sans-serif; font-size: 13px; padding: 6px 12px; border: 1px solid {LINE_HAIRLINE}; background-color: {PANEL_PAPER}; border-radius: 2px;">High priority alert</div>', unsafe_allow_html=True)
 
     elif priority == "medium-high":
-        st.warning("MEDIUM-HIGH PRIORITY")
+        st.markdown(f'<div style="color: {TIER_COLORS["medium-high"]}; font-weight: 600; font-family: \'IBM Plex Sans\', sans-serif; font-size: 13px; padding: 6px 12px; border: 1px solid {LINE_HAIRLINE}; background-color: {PANEL_PAPER}; border-radius: 2px;">Medium-high priority alert</div>', unsafe_allow_html=True)
 
     else:
-        st.info(priority.upper())
+        st.markdown(f'<div style="color: {TIER_COLORS.get(priority, TEXT_MUTED)}; font-weight: 600; font-family: \'IBM Plex Sans\', sans-serif; font-size: 13px; padding: 6px 12px; border: 1px solid {LINE_HAIRLINE}; background-color: {PANEL_PAPER}; border-radius: 2px;">{priority.capitalize()} priority alert</div>', unsafe_allow_html=True)
 
     # ----------------------------------------------------
     # Explanation
@@ -1258,11 +1516,13 @@ else:
 
         shap_df["SHAP Impact"] = shap_df["SHAP Impact"].round(4)
 
+        st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
         st.dataframe(
             shap_df,
             use_container_width=True,
             hide_index=True,
         )
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # ----------------------------------------------------
     # Raw data
@@ -1385,10 +1645,12 @@ if default_dossier_wallet is not None:
 
             graph_html = render_investigation_graph(investigation_graph, selected_txid)
 
+            st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
             st.components.v1.html(
                 graph_html,
                 height=680,
             )
+            st.markdown('</div>', unsafe_allow_html=True)
 
         elif GRAPH_HTML_FILE.exists():
             st.info(
@@ -1399,10 +1661,12 @@ if default_dossier_wallet is not None:
 
             graph_html = GRAPH_HTML_FILE.read_text(encoding="utf-8")
 
+            st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
             st.components.v1.html(
                 clean_graph_html(graph_html),
                 height=680,
             )
+            st.markdown('</div>', unsafe_allow_html=True)
 
         else:
             st.warning("Entity graph not found. Run entity_graph_modified.py first.")
@@ -1486,7 +1750,9 @@ else:
                     hop_graph, selected_txid if "selected_txid" in locals() else ""
                 )
 
+                st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
                 st.components.v1.html(hop_html, height=680)
+                st.markdown('</div>', unsafe_allow_html=True)
 
     # --------------------------------------------------------
     # SHORTEST PATH
@@ -1536,7 +1802,9 @@ else:
                     path_graph, selected_txid if "selected_txid" in locals() else ""
                 )
 
+                st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
                 st.components.v1.html(path_html, height=680)
+                st.markdown('</div>', unsafe_allow_html=True)
 
     # --------------------------------------------------------
     # FUND FLOW
@@ -1588,7 +1856,9 @@ else:
                     flow_graph, selected_txid if "selected_txid" in locals() else ""
                 )
 
+                st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
                 st.components.v1.html(flow_html, height=680)
+                st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ============================================================
