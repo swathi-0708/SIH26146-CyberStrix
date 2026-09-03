@@ -19,6 +19,7 @@ even when it finds SUSPECT features -- it just prints its verdict. Skipping
 it entirely means you'd never see that warning at all. --skip-check exists
 for fast dev iteration only; don't use it before a real run you plan to trust.
 """
+
 import argparse
 import subprocess
 import sys
@@ -31,30 +32,44 @@ STAGES = [
     ("train_compare.py", [], "train"),
     ("train_isolation_forest.py", [], "train"),
     ("build_alerts.py", [], "alerts"),
+    ("entity_graph.py", [], "graph"),
+    ("explain_alerts.py", [], "explain"),
 ]
 
 
 def run_stage(script, extra_args, label):
     print(f"\n{'=' * 60}")
     print(f"  {script}")
-    print('=' * 60)
+    print("=" * 60)
     t0 = time.time()
     result = subprocess.run([sys.executable, script] + extra_args)
     elapsed = time.time() - t0
     if result.returncode != 0:
-        print(f"\n!!! {script} FAILED (exit code {result.returncode}, {elapsed:.1f}s) -- stopping pipeline.")
+        print(
+            f"\n!!! {script} FAILED (exit code {result.returncode}, {elapsed:.1f}s) -- stopping pipeline."
+        )
         sys.exit(result.returncode)
     print(f"--- {script} done in {elapsed:.1f}s ---")
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", type=str, default=None,
-                     help="Transactions file to ingest (.csv/.json/.xml). Passed through to split_dataset.py.")
-    ap.add_argument("--skip-generate", action="store_true",
-                     help="Reuse existing output/transactions.* instead of regenerating.")
-    ap.add_argument("--skip-check", action="store_true",
-                     help="Skip the leakage audit. Dev/iteration use only, not recommended before a real run.")
+    ap.add_argument(
+        "--input",
+        type=str,
+        default=None,
+        help="Transactions file to ingest (.csv/.json/.xml). Passed through to split_dataset.py.",
+    )
+    ap.add_argument(
+        "--skip-generate",
+        action="store_true",
+        help="Reuse existing output/transactions.* instead of regenerating.",
+    )
+    ap.add_argument(
+        "--skip-check",
+        action="store_true",
+        help="Skip the leakage audit. Dev/iteration use only, not recommended before a real run.",
+    )
     args = ap.parse_args()
 
     t_start = time.time()
@@ -76,7 +91,7 @@ def main():
     print(f"  Pipeline complete in {total:.1f}s")
     print(f"  Alerts: output/alerts.csv (demo, no ground truth)")
     print(f"          output/alerts_eval.csv (dev, with ground truth -- not for demo)")
-    print('=' * 60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":
