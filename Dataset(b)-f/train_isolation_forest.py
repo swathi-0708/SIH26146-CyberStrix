@@ -19,6 +19,7 @@ unsupervised) but rebuilt to:
 
 import pandas as pd
 from sklearn.ensemble import IsolationForest
+from network_corr import NETWORK_CORR_COLS
 
 train_df = pd.read_csv("output/train.csv")
 test_df = pd.read_csv("output/test.csv")
@@ -45,7 +46,7 @@ FEATURE_COLS = [
     "sender_distinct_asn_last10",
     "sender_distinct_ip_last10",
     "sender_amount_zscore",
-]
+] + NETWORK_CORR_COLS
 
 X = all_df[FEATURE_COLS]
 

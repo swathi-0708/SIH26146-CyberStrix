@@ -11,6 +11,7 @@ from sklearn.metrics import (
     confusion_matrix,
 )
 import joblib
+from network_corr import NETWORK_CORR_COLS
 
 # ---- Load split data ----
 train_df = pd.read_csv("output/train.csv")
@@ -43,7 +44,7 @@ FEATURE_COLS = [
     "sender_distinct_asn_last10",
     "sender_distinct_ip_last10",
     "sender_amount_zscore",
-]
+] + NETWORK_CORR_COLS
 
 X_train = train_df[FEATURE_COLS]
 y_train = train_df["is_anomaly"]

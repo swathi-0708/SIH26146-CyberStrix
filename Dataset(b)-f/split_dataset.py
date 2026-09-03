@@ -18,6 +18,7 @@ import random
 import re
 from collections import deque
 from ingest import load_transactions
+from network_corr import add_network_correlation_features, NETWORK_CORR_COLS
 
 random.seed(42)
 
@@ -143,6 +144,16 @@ raw["fee_ratio"] = raw.apply(
 # columns, a per-transaction model is structurally blind to almost all of them.
 raw["timestamp_dt"] = pd.to_datetime(raw["timestamp"], format="mixed", utc=True)
 
+# ---- Network correlation features ----
+# Per-sender network-flow diversity: unique src/dst IPs, unique ports, unique
+# ASNs, unique countries, plus cross-country / multi-ASN activity flags.
+# Causal (history strictly before the current row) and grouped by the same
+# first_input_addr sender used everywhere else in this file -- see
+# network_corr.py's module docstring for the full rationale. This is
+# the "Network-layer work beyond src_ip" item from RUN_ORDER.md's still-open
+# list: dst_ip/dst_port/asn/geo_country were ingested but never used until now.
+raw = add_network_correlation_features(raw)
+
 raw["sender_tx_count_1h"] = 0
 raw["sender_tx_count_24h"] = 0
 raw["sender_time_since_last_tx_min"] = -1.0
@@ -254,7 +265,7 @@ feature_cols = [
     "sender_distinct_asn_last10",
     "sender_distinct_ip_last10",
     "sender_amount_zscore",
-]
+] + NETWORK_CORR_COLS
 featured = raw[feature_cols]
 
 # ---- NaN/Inf check on the newly added / division-based columns ----

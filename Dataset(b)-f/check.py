@@ -1,6 +1,8 @@
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
+from network_corr import NETWORK_CORR_COLS
+
 train_df = pd.read_csv("output/train.csv")
 feature_cols = [
     "n_inputs",
@@ -19,7 +21,7 @@ feature_cols = [
     "sender_distinct_asn_last10",
     "sender_distinct_ip_last10",
     "sender_amount_zscore",
-]
+] + NETWORK_CORR_COLS
 
 anomaly_types = train_df["anomaly_type"].dropna().unique()
 
