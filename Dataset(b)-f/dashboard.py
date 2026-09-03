@@ -22,6 +22,23 @@ GRAPHML_FILE = OUTPUT_DIR / "entity_graph_ip_tx_wallet.graphml"
 # Fallback HTML
 GRAPH_HTML_FILE = OUTPUT_DIR / "entity_graph_ip_tx_wallet_focused.html"
 
+# --------------------------------------------------------------
+# Single source of truth for tier -> color, used everywhere a tier
+# is drawn (metrics, table, graph nodes) so the same tier is never
+# two different colors in two different places. Only the three
+# tiers build_alerts.py actually produces -- no "critical", it
+# doesn't exist in this pipeline.
+# --------------------------------------------------------------
+TIER_COLORS = {
+    "high": "#d64545",
+    "medium-high": "#c98a3e",
+    "worth reviewing": "#b8a13c",
+    "none": "#5b6472",
+}
+BG_COLOR = "#12141a"
+PANEL_COLOR = "#181b22"
+ACCENT_COLOR = "#4f8ff7"
+
 
 # ============================================================
 # PAGE
@@ -29,8 +46,39 @@ GRAPH_HTML_FILE = OUTPUT_DIR / "entity_graph_ip_tx_wallet_focused.html"
 
 st.set_page_config(
     page_title="CyberStrix Investigator",
-    page_icon="🔎",
+    page_icon=":mag:",
     layout="wide",
+)
+
+# --------------------------------------------------------------
+# Theme: Streamlit's default is a plain white page. This app embeds
+# a dark pyvis graph (bgcolor #0f1117) directly inside it, so the
+# default produces a jarring white-card-on-white-page frame around
+# a dark graph. Pinning a single dark background + panel color here
+# keeps the whole page one consistent surface instead of two
+# clashing ones. No gradients, no glass, just a flat dark ground
+# with enough contrast to read tier colors clearly.
+# --------------------------------------------------------------
+st.markdown(
+    f"""
+    <style>
+    .stApp {{
+        background-color: {BG_COLOR};
+    }}
+    [data-testid="stSidebar"] {{
+        background-color: {PANEL_COLOR};
+    }}
+    [data-testid="stMetric"] {{
+        background-color: {PANEL_COLOR};
+        padding: 14px 16px;
+        border-radius: 6px;
+    }}
+    div[data-testid="stDataFrame"] {{
+        background-color: {PANEL_COLOR};
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 
@@ -277,8 +325,8 @@ def render_investigation_graph(G, selected_txid):
     net = Network(
         height="650px",
         width="100%",
-        bgcolor="#0f1117",
-        font_color="white",
+        bgcolor=BG_COLOR,
+        font_color="#e6e8ec",
         directed=True,
     )
 
@@ -314,6 +362,12 @@ def render_investigation_graph(G, selected_txid):
     # Add nodes
     # --------------------------------------------------------
 
+    # Computed ONCE per render call, not per-node inside the loop below --
+    # rescanning the whole graph for every single node just to check "is
+    # this the highlighted one" is O(n^2) and only gets away with it at
+    # small focused-subgraph sizes.
+    highlighted_node = str(find_transaction_node(G, selected_txid))
+
     for node, data in G.nodes(data=True):
         node_id = str(node)
 
@@ -336,29 +390,32 @@ def render_investigation_graph(G, selected_txid):
         # Colors
         # ----------------------------------------------------
 
-        if node_id == str(find_transaction_node(G, selected_txid)):
-            color = "#ff3333"
+        if node_id == highlighted_node:
+            color = "#e8564f"
             size = 35
 
         elif node_type == "transaction":
-            color = "#e63946"
+            color = TIER_COLORS.get(
+                str(data.get("priority_tier", "")).lower(), "#8a90a3"
+            )
             size = 25
 
         elif node_type == "wallet":
-            # Alerted wallets are red, normal counterparties blue.
-            priority = str(data.get("priority_tier", "")).lower()
-
-            if priority in ["high", "critical"]:
-                color = "#ff3333"
-
-            else:
-                color = "#80bfff"
-
+            # Alerted wallets are colored by tier, normal counterparties
+            # neutral grey-blue. NOTE: wallet nodes carry their tier under
+            # "max_priority_tier" (a wallet can have several alerted
+            # transactions; this is the worst one) -- entity_graph.py only
+            # ever sets a plain "priority_tier" on TRANSACTION nodes.
+            # Reading "priority_tier" here always misses on wallet nodes,
+            # so every wallet silently fell through to the same color
+            # regardless of alert status.
+            priority = str(data.get("max_priority_tier", "")).lower()
+            color = TIER_COLORS.get(priority, "#6f9bd1")
             size = 22
 
         else:
             # IP
-            color = "#4da6ff"
+            color = ACCENT_COLOR
             size = 17
 
         # ----------------------------------------------------
@@ -375,6 +432,9 @@ def render_investigation_graph(G, selected_txid):
 
         if "priority_tier" in data:
             tooltip += f"<br>Priority: {data['priority_tier']}"
+
+        if "max_priority_tier" in data:
+            tooltip += f"<br>Worst alert tier: {data['max_priority_tier']}"
 
         net.add_node(
             node_id,
@@ -398,6 +458,7 @@ def render_investigation_graph(G, selected_txid):
             str(target),
             title=edge_label,
             label=edge_label if edge_label else "",
+            color="#3a3f4b",
         )
 
     # --------------------------------------------------------
@@ -422,9 +483,13 @@ def render_investigation_graph(G, selected_txid):
 # TITLE
 # ============================================================
 
-st.title("🔎 CyberStrix Investigator")
+st.title("CyberStrix Investigator")
 
-st.caption("Offline Bitcoin transaction anomaly detection and investigation dashboard")
+st.caption(
+    "Offline Bitcoin transaction anomaly detection and investigation dashboard "
+    "· runs fully offline, no network calls · synthetic demonstration data, "
+    "not real seized evidence"
+)
 
 
 # ============================================================
@@ -433,7 +498,9 @@ st.caption("Offline Bitcoin transaction anomaly detection and investigation dash
 
 total_alerts = len(alerts)
 
-high_alerts = len(alerts[alerts["priority_tier"].isin(["high", "critical"])])
+# "critical" is not a tier build_alerts.py ever produces (only high /
+# medium-high / worth reviewing) -- counting it in here was dead code.
+high_alerts = len(alerts[alerts["priority_tier"] == "high"])
 
 medium_alerts = len(alerts[alerts["priority_tier"] == "medium-high"])
 
@@ -442,13 +509,13 @@ both_alerts = len(alerts[alerts["detector"] == "both"])
 
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric("🚨 Total Alerts", total_alerts)
+col1.metric("Total Alerts", total_alerts)
 
-col2.metric("🔴 High Priority", high_alerts)
+col2.metric("High Priority", high_alerts)
 
-col3.metric("🟠 Medium-High", medium_alerts)
+col3.metric("Medium-High", medium_alerts)
 
-col4.metric("🤖 ML Agreement", both_alerts)
+col4.metric("Flagged by Both Detectors", both_alerts)
 
 
 st.divider()
@@ -487,7 +554,7 @@ filtered = alerts[
 # ALERT TABLE
 # ============================================================
 
-st.header("🚨 Investigation Alerts")
+st.header("Investigation Alerts")
 
 st.write(f"Showing **{len(filtered)}** of **{len(alerts)}** alerts.")
 
@@ -519,7 +586,7 @@ st.dataframe(
 
 st.divider()
 
-st.header("🔍 Investigate Alert")
+st.header("Investigate Alert")
 
 if len(filtered) == 0:
     st.warning("No alerts match the selected filters.")
@@ -588,7 +655,7 @@ else:
         # Explanation
         # ----------------------------------------------------
 
-        st.subheader("🧠 Why was it flagged?")
+        st.subheader("Why was it flagged?")
 
         st.info(str(row["top_reasons"]))
 
@@ -596,7 +663,7 @@ else:
         # SHAP
         # ----------------------------------------------------
 
-        st.subheader("📊 Top contributing features")
+        st.subheader("Top contributing features")
 
         feature_data = []
 
@@ -636,7 +703,7 @@ else:
         # ====================================================
 
         st.divider()
-        st.header("📁 Wallet Dossier")
+        st.header("Wallet Dossier")
         all_wallets = sorted(
             alerts["canonical_wallet_id"].dropna().astype(str).unique(),
             key=lambda x: int(x) if x.isdigit() else x,
@@ -703,7 +770,7 @@ else:
         ]
 
         st.dataframe(wallet_tx[display_cols], use_container_width=True, hide_index=True)
-        st.subheader("🌐 Network Associations")
+        st.subheader("Network Associations")
 
         if unique_ips:
             network_data = pd.DataFrame({"IP Address": sorted(unique_ips)})
@@ -718,7 +785,7 @@ else:
 
         st.divider()
 
-        st.header("🔗 Investigation Graph")
+        st.header("Investigation Graph")
 
         st.caption(
             "Showing the selected transaction "
@@ -768,12 +835,12 @@ else:
 
 st.divider()
 
-st.header("🕵️ Advanced Investigation")
+st.header("Advanced Investigation")
 
 if G is None:
     st.warning("Entity graph could not be loaded. Run entity_graph_modified.py first.")
 else:
-    tab1, tab2, tab3 = st.tabs(["🔎 N-Hop Analysis", "🛣️ Wallet Path", "💸 Fund Flow"])
+    tab1, tab2, tab3 = st.tabs(["N-Hop Analysis", "Wallet Path", "Fund Flow"])
 
     # --------------------------------------------------------
     # N-HOP ANALYSIS
@@ -887,6 +954,6 @@ else:
 st.divider()
 
 st.caption(
-    "CyberStrix • Offline AI/ML investigation prototype • "
+    "CyberStrix · Offline AI/ML investigation prototype · "
     "XGBoost + Isolation Forest + SHAP + Entity Graph"
 )
