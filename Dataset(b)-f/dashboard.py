@@ -1175,7 +1175,7 @@ else:
                     hop_graph, selected_txid if "selected_txid" in locals() else ""
                 )
 
-                st.iframe(hop_html, height=680, scrolling=False)
+                st.iframe(hop_html, height=680,)
 
     # --------------------------------------------------------
     # SHORTEST PATH
@@ -1205,7 +1205,7 @@ else:
                     path_graph, selected_txid if "selected_txid" in locals() else ""
                 )
 
-                st.iframe(path_html, height=680, scrolling=False)
+                st.iframe(path_html, height=680,)
 
     # --------------------------------------------------------
     # FUND FLOW
