@@ -18,7 +18,7 @@ ALERTS_FILE = OUTPUT_DIR / "alerts.csv"
 EXPLAINED_FILE = OUTPUT_DIR / "alerts_explained.csv"
 
 # Main IP -> Transaction -> Wallet GraphML
-GRAPHML_FILE = OUTPUT_DIR / "entity_graph_ip_tx_wallet.graphml"
+GRAPHML_FILE = OUTPUT_DIR / "entity_graph_full.graphml"
 
 # Fallback HTML
 GRAPH_HTML_FILE = OUTPUT_DIR / "entity_graph_ip_tx_wallet_focused.html"
@@ -623,6 +623,18 @@ G = load_graph()
 # GRAPH FUNCTIONS
 # ============================================================
 
+def find_transaction_edge(G, txid):
+    """
+    Find the edge whose 'txids' attribute contains the selected TXID.
+    Returns (u, v, data) or None.
+    """
+    txid = str(txid)
+    for u, v, data in G.edges(data=True):
+        txids_field = str(data.get("txids", ""))
+        txid_list = [t.strip() for t in txids_field.split(",")]
+        if txid in txid_list:
+            return (u, v, data)
+    return None
 
 def find_transaction_node(G, txid):
     """
@@ -663,11 +675,22 @@ def build_investigation_graph(txid, wallet_id):
     except Exception as e:
         st.error(f"Could not read entity graph: {e}")
         return None
-
     tx_node = find_transaction_node(G, txid)
 
     if tx_node is None:
-        return None
+        # This graph stores transactions as edges, not nodes.
+        edge_match = find_transaction_edge(G, txid)
+        if edge_match is None:
+            return None
+        u, v, edge_data = edge_match
+        nodes_to_keep = {u, v}
+        nodes_to_keep.update(G.neighbors(u))
+        nodes_to_keep.update(G.neighbors(v))
+        if G.is_directed():
+            nodes_to_keep.update(G.predecessors(u))
+            nodes_to_keep.update(G.predecessors(v))
+        subgraph = G.subgraph(nodes_to_keep).copy()
+        return subgraph
 
     # --------------------------------------------------------
     # Find the wallet belonging to this alert
@@ -847,7 +870,7 @@ def fund_flow_query(G, entity, hops=2, direction="both"):
     return G.subgraph(lengths.keys()).copy()
 
 
-def render_investigation_graph(G, selected_txid):
+def render_investigation_graph(G, selected_txid, selected_wallet=None):
 
     net = Network(
         height="650px",
@@ -891,6 +914,7 @@ def render_investigation_graph(G, selected_txid):
 
     # Computed ONCE per render call, not per-node inside the loop below
     highlighted_node = str(find_transaction_node(G, selected_txid))
+    highlighted_wallet = str(selected_wallet) if selected_wallet is not None else None
 
     for node, data in G.nodes(data=True):
         node_id = str(node)
@@ -914,7 +938,11 @@ def render_investigation_graph(G, selected_txid):
         # Colors
         # ----------------------------------------------------
 
-        if node_id == highlighted_node:
+        if (
+            node_id == highlighted_wallet
+            or str(data.get("wallet_id", "")) == highlighted_wallet
+            or str(data.get("label", "")) == f"Wallet #{highlighted_wallet}"
+        ):
             color = "#c1442e"
             size = 35
 
@@ -1210,7 +1238,6 @@ def show_graph_explorer():
             st.markdown('</div>', unsafe_allow_html=True)
 
 
-show_graph_explorer()
 
 
 # ============================================================
@@ -1532,6 +1559,60 @@ else:
         st.json({str(k): (None if pd.isna(v) else str(v)) for k, v in row.items()})
 
     # ====================================================
+if "selected_txid" in locals() and "row" in locals():
+    # ====================================================
+    # ALERT-SPECIFIC GRAPH
+    # ====================================================
+
+    st.divider()
+
+    st.header("Investigation Graph")
+
+    st.caption(
+        "Showing the selected transaction "
+        "and its directly connected IPs and wallets."
+    )
+
+    investigation_graph = build_investigation_graph(
+        selected_txid, row["canonical_wallet_id"]
+    )
+
+    if investigation_graph is not None:
+        st.write(
+            f"**{len(investigation_graph.nodes)} "
+            f"entities** connected to this transaction."
+        )
+        graph_html = render_investigation_graph(
+            investigation_graph,
+            selected_txid,
+            row["canonical_wallet_id"]
+        )
+
+        st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
+        st.components.v1.html(
+            graph_html,
+            height=680,
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    elif GRAPH_HTML_FILE.exists():
+        st.info(
+            "The selected transaction could not "
+            "be isolated from the GraphML file. "
+            "Showing the focused graph instead."
+        )
+
+        graph_html = GRAPH_HTML_FILE.read_text(encoding="utf-8")
+
+        st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
+        st.components.v1.html(
+            clean_graph_html(graph_html),
+            height=680,
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    else:
+        st.warning("Entity graph not found. Run entity_graph_modified.py first.")
     # WALLET DOSSIER
     # ====================================================
 
@@ -1612,64 +1693,53 @@ if default_dossier_wallet is not None:
     st.dataframe(wallet_tx[display_cols], use_container_width=True, hide_index=True)
     st.subheader("Network Associations")
 
-    if unique_ips:
-        network_data = pd.DataFrame({"IP Address": sorted(unique_ips)})
+    network_graph_file = OUTPUT_DIR / "entity_graph_ip_tx_wallet.graphml"
+    graph_ips = set()
 
-        st.dataframe(network_data, use_container_width=True, hide_index=True)
+    if network_graph_file.exists():
+        try:
+            NG = nx.read_graphml(network_graph_file)
+            wallet_node = f"wallet:{dossier_wallet}"
+
+            if wallet_node in NG:
+                transaction_nodes = [
+                    n
+                    for n, edge_data in NG[wallet_node].items()
+                    if str(edge_data.get("relation", "")) in {"input", "output"}
+                    and str(NG.nodes[n].get("node_type", "")) == "transaction"
+                ]
+
+                for tx_node in transaction_nodes:
+                    for neighbor, edge_data in NG[tx_node].items():
+                        relation = str(edge_data.get("relation", ""))
+
+                        if relation in {"observed_source", "observed_destination"}:
+                            node_data = NG.nodes[neighbor]
+
+                            if str(node_data.get("node_type", "")) == "ip":
+                                ip_value = str(node_data.get("ip", neighbor))
+
+                                if ip_value and ip_value != "None":
+                                    graph_ips.add(ip_value)
+
+        except Exception as e:
+            st.warning(f"Could not load network associations: {e}")
+
+    if graph_ips:
+        network_data = pd.DataFrame({"IP Address": sorted(graph_ips)})
+
+        st.caption(
+            f"{len(graph_ips)} network IP association(s) found from the transaction graph."
+        )
+
+        st.dataframe(
+            network_data,
+            use_container_width=True,
+            hide_index=True
+        )
     else:
         st.info("No network associations found for this wallet.")
 
-    if "selected_txid" in locals() and "row" in locals():
-        # ====================================================
-        # ALERT-SPECIFIC GRAPH
-        # ====================================================
-
-        st.divider()
-
-        st.header("Investigation Graph")
-
-        st.caption(
-            "Showing the selected transaction "
-            "and its directly connected IPs and wallets."
-        )
-
-        investigation_graph = build_investigation_graph(
-            selected_txid, row["canonical_wallet_id"]
-        )
-
-        if investigation_graph is not None:
-            st.write(
-                f"**{len(investigation_graph.nodes)} "
-                f"entities** connected to this transaction."
-            )
-
-            graph_html = render_investigation_graph(investigation_graph, selected_txid)
-
-            st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
-            st.components.v1.html(
-                graph_html,
-                height=680,
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        elif GRAPH_HTML_FILE.exists():
-            st.info(
-                "The selected transaction could not "
-                "be isolated from the GraphML file. "
-                "Showing the focused graph instead."
-            )
-
-            graph_html = GRAPH_HTML_FILE.read_text(encoding="utf-8")
-
-            st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
-            st.components.v1.html(
-                clean_graph_html(graph_html),
-                height=680,
-            )
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        else:
-            st.warning("Entity graph not found. Run entity_graph_modified.py first.")
 else:
     st.info("No wallet data is available for the dossier.")
 
@@ -1747,7 +1817,9 @@ else:
                 )
 
                 hop_html = render_investigation_graph(
-                    hop_graph, selected_txid if "selected_txid" in locals() else ""
+                    hop_graph,
+                    selected_txid if "selected_txid" in locals() else "",
+                    hop_entity
                 )
 
                 st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
@@ -1871,3 +1943,6 @@ st.caption(
     "CyberStrix · Offline AI/ML investigation prototype · "
     "XGBoost + Isolation Forest + SHAP + Entity Graph"
 )
+
+
+show_graph_explorer()
