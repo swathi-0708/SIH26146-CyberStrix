@@ -1151,7 +1151,7 @@ def show_graph_explorer():
         "Graph View",
         [
             "IP → Transaction → Wallet",
-            "Risk Cluster",
+            "risk focused graph",
             "Wallet → Wallet",
         ],
         key="graph_view",
@@ -1925,7 +1925,7 @@ else:
                 )
 
                 flow_html = render_investigation_graph(
-                    flow_graph, selected_txid if "selected_txid" in locals() else ""
+                    flow_graph, selected_txid if "selected_txid" in locals() else "", flow_entity
                 )
 
                 st.markdown('<div class="instrument-panel"><div class="corner-tick-tr"></div><div class="corner-tick-bl"></div>', unsafe_allow_html=True)
