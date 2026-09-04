@@ -36,10 +36,10 @@ TIER_RANK = {
 }
 
 TIER_COLOR = {
-    "high": "#C4473A",
-    "medium-high": "#C1843D",
-    "worth reviewing": "#A89538",
-    "none": "#62806B",
+    "high": "#e63946",
+    "medium-high": "#f4a261",
+    "worth reviewing": "#e9c46a",
+    "none": "#a8b0b8",
 }
 
 

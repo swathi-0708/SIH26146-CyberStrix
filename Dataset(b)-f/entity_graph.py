@@ -30,14 +30,19 @@ GRAPH_HTML_FILE = OUTPUT_DIR / "entity_graph_full_focused.html"
 # doesn't exist in this pipeline.
 # --------------------------------------------------------------
 TIER_COLORS = {
-    "high": "#C4473A",
-    "medium-high": "#C1843D",
-    "worth reviewing": "#A89538",
-    "none": "#62806B",
+    "high": "#B23A3A",
+    "medium-high": "#C97A2B",
+    "worth reviewing": "#A88A2A",
+    "none": "#8A94A6",
 }
-GRAPH_BG_COLOR = "#142F35"
-NAVY = "#1B3D44"
-ACCENT_COLOR = "#5A8995"
+# Graph canvas stays navy, matching the slide's palette -- a dark
+# "console" panel for the investigation graph is a deliberate,
+# common pattern in security tooling (dense, colored nodes read
+# better on a dark canvas), not a leftover from a forced dark mode.
+# The surrounding page itself is light, per .streamlit/config.toml.
+GRAPH_BG_COLOR = "#111C33"
+NAVY = "#1B2A4A"
+ACCENT_COLOR = "#3D6FB4"
 
 
 # ============================================================

@@ -83,10 +83,10 @@ ALERTS_PATH = "output/alerts.csv"
 
 TIER_RANK = {"high": 3, "medium-high": 2, "worth reviewing": 1}
 TIER_COLOR = {
-    "high": "#C4473A",
-    "medium-high": "#C1843D",
-    "worth reviewing": "#A89538",
-    None: "#62806B",
+    "high": "#e63946",
+    "medium-high": "#f4a261",
+    "worth reviewing": "#e9c46a",
+    None: "#a8b0b8",
 }
 
 
