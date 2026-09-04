@@ -1,0 +1,34 @@
+Total entities: 7356 (601 multi-address, 6755 singleton)
+
+Top 25 entities by risk_score:
+  E00000: risk=0, 0 alerts (worst=none), 13 addresses (1 profile wallets, wallet_ids=[740]), ~2.2953 BTC via primary-sender legs, heuristics=[common_input;likely_change_address;shared_src_ip]
+  E00001: risk=0, 0 alerts (worst=none), 12 addresses (1 profile wallets, wallet_ids=[302]), ~4.4410 BTC via primary-sender legs, heuristics=[common_input;likely_change_address;shared_src_ip]
+  E00002: risk=0, 0 alerts (worst=none), 12 addresses (1 profile wallets, wallet_ids=[550]), ~2.5481 BTC via primary-sender legs, heuristics=[common_input;likely_change_address;shared_src_ip]
+  E00003: risk=0, 0 alerts (worst=none), 11 addresses (1 profile wallets, wallet_ids=[242]), ~3.3230 BTC via primary-sender legs, heuristics=[common_input]
+  E00004: risk=0, 0 alerts (worst=none), 11 addresses (1 profile wallets, wallet_ids=[598]), ~1.2788 BTC via primary-sender legs, heuristics=[common_input]
+  E00005: risk=0, 0 alerts (worst=none), 11 addresses (1 profile wallets, wallet_ids=[720]), ~2.9354 BTC via primary-sender legs, heuristics=[common_input]
+  E00006: risk=0, 0 alerts (worst=none), 11 addresses (1 profile wallets, wallet_ids=[730]), ~1.1576 BTC via primary-sender legs, heuristics=[common_input]
+  E00007: risk=0, 0 alerts (worst=none), 10 addresses (1 profile wallets, wallet_ids=[380]), ~0.3332 BTC via primary-sender legs, heuristics=[common_input]
+  E00008: risk=0, 0 alerts (worst=none), 10 addresses (1 profile wallets, wallet_ids=[617]), ~2.2359 BTC via primary-sender legs, heuristics=[common_input]
+  E00009: risk=0, 0 alerts (worst=none), 10 addresses (1 profile wallets, wallet_ids=[760]), ~0.4933 BTC via primary-sender legs, heuristics=[common_input]
+  E00010: risk=0, 0 alerts (worst=none), 9 addresses (1 profile wallets, wallet_ids=[330]), ~1.1820 BTC via primary-sender legs, heuristics=[likely_change_address;shared_src_ip]
+  E00011: risk=0, 0 alerts (worst=none), 9 addresses (1 profile wallets, wallet_ids=[481]), ~0.2762 BTC via primary-sender legs, heuristics=[common_input]
+  E00012: risk=0, 0 alerts (worst=none), 9 addresses (1 profile wallets, wallet_ids=[576]), ~1.3020 BTC via primary-sender legs, heuristics=[common_input]
+  E00013: risk=0, 0 alerts (worst=none), 9 addresses (1 profile wallets, wallet_ids=[615]), ~0.9354 BTC via primary-sender legs, heuristics=[common_input]
+  E00014: risk=0, 0 alerts (worst=none), 8 addresses (1 profile wallets, wallet_ids=[37]), ~0.0883 BTC via primary-sender legs, heuristics=[common_input]
+  E00015: risk=0, 0 alerts (worst=none), 8 addresses (1 profile wallets, wallet_ids=[94]), ~1.4822 BTC via primary-sender legs, heuristics=[common_input]
+  E00016: risk=0, 0 alerts (worst=none), 8 addresses (1 profile wallets, wallet_ids=[102]), ~0.4354 BTC via primary-sender legs, heuristics=[common_input]
+  E00017: risk=0, 0 alerts (worst=none), 8 addresses (1 profile wallets, wallet_ids=[116]), ~0.7965 BTC via primary-sender legs, heuristics=[common_input]
+  E00018: risk=0, 0 alerts (worst=none), 8 addresses (1 profile wallets, wallet_ids=[307]), ~0.4884 BTC via primary-sender legs, heuristics=[common_input]
+  E00019: risk=0, 0 alerts (worst=none), 8 addresses (1 profile wallets, wallet_ids=[454]), ~1.5000 BTC via primary-sender legs, heuristics=[common_input]
+  E00020: risk=0, 0 alerts (worst=none), 8 addresses (1 profile wallets, wallet_ids=[539]), ~0.4874 BTC via primary-sender legs, heuristics=[common_input]
+  E00021: risk=0, 0 alerts (worst=none), 8 addresses (1 profile wallets, wallet_ids=[584]), ~1.2517 BTC via primary-sender legs, heuristics=[common_input]
+  E00022: risk=0, 0 alerts (worst=none), 8 addresses (1 profile wallets, wallet_ids=[755]), ~9.5555 BTC via primary-sender legs, heuristics=[common_input;likely_change_address;shared_src_ip]
+  E00023: risk=0, 0 alerts (worst=none), 7 addresses (1 profile wallets, wallet_ids=[10]), ~0.5728 BTC via primary-sender legs, heuristics=[common_input]
+  E00024: risk=0, 0 alerts (worst=none), 7 addresses (1 profile wallets, wallet_ids=[85]), ~0.3779 BTC via primary-sender legs, heuristics=[common_input]
+
+Excluded high-fan-in transactions (likely mixer/pooling points, NOT clustered as common ownership -- see heuristic 1 caveat in module docstring):
+  8df2bda9fe6c598cf971a861f66f9ea6: 25 inputs
+  7c734eeec2fd66fa8c3ce2ff5095e10c: 25 inputs
+  04e6d80d80978429f441172915c29fad: 25 inputs
+  0ec87c27962743bfb1a9067f69fd8b63: 25 inputs

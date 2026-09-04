@@ -26,10 +26,10 @@ from pyvis.network import Network
 from investigation_queries import load_graph, n_hop_query, _pick_sample_entities
 
 TIER_COLOR = {
-    "high": "#e63946",
-    "medium-high": "#f4a261",
-    "worth reviewing": "#e9c46a",
-    "none": "#a8b0b8",
+    "high": "#C4473A",
+    "medium-high": "#C1843D",
+    "worth reviewing": "#A89538",
+    "none": "#62806B",
 }
 
 
@@ -39,8 +39,8 @@ def render(sub, focus_entity, out_path):
         width="100%",
         directed=True,
         notebook=False,
-        bgcolor="#111318",
-        font_color="#e8e8e8",
+        bgcolor="#142F35",
+        font_color="#E9EEED",
         cdn_resources="in_line",
     )
     net.barnes_hut(
@@ -58,10 +58,10 @@ def render(sub, focus_entity, out_path):
         is_focus = n == focus_entity
 
         if is_ip:
-            color, size, shape = "#4895ef", 16, "square"
+            color, size, shape = "#5A8995", 16, "square"
             label = str(d.get("ip", n)).replace("ip:", "")
         elif is_disposable and tier is None:
-            color, size, shape = "#5a616b", 8, "dot"
+            color, size, shape = "#5E7074", 8, "dot"
             label = " "  # NOT "" -- pyvis treats "" as falsy and silently
             # falls back to using the raw node id as the label (confirmed in
             # pyvis's own add_node source: `if label: ... else: node_label =
@@ -78,7 +78,7 @@ def render(sub, focus_entity, out_path):
 
         if is_focus:
             size += 10  # focus entity is visibly the biggest node in the view
-            color = "#00e5ff"  # bright cyan ring, distinct from every tier color
+            color = "#C4473A"  # selected entity uses HIGH risk color
             shape = "star" if not is_ip else shape
 
         title = f"{'src_ip ' if is_ip else 'wallet #'}{n}"
@@ -101,12 +101,12 @@ def render(sub, focus_entity, out_path):
     for u, v, d in sub.edges(data=True):
         if d.get("edge_type") == "network":
             net.add_edge(
-                u, v, color="#4895ef", width=1, dashes=True,
+                u, v, color="#5A8995", width=1, dashes=True,
                 title=f"{d.get('n_tx', '?')} tx observed from this src_ip", arrows="to",
             )
             continue
         tier = d.get("max_priority_tier", "none")
-        color = TIER_COLOR[tier] if tier and tier != "none" else "#4a5058"
+        color = TIER_COLOR[tier] if tier and tier != "none" else "#52747D"
         width = 1 + min(int(float(d.get("n_tx", 1))), 8)
         title = f"{d.get('n_tx', '?')} tx"
         if "total_btc" in d:
@@ -117,7 +117,9 @@ def render(sub, focus_entity, out_path):
     { "physics": {"stabilization": {"iterations": 150}},
       "interaction": {"hover": true, "tooltipDelay": 100} }
     """)
-    net.write_html(out_path, notebook=False, open_browser=False)
+    html = net.generate_html()
+    from pathlib import Path
+    Path(out_path).write_text(html, encoding="utf-8")
 
 
 def main():
